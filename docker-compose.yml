@@ -1,0 +1,121 @@
+﻿networks:
+  projectx-network:
+    name: projectx-network
+    driver: bridge
+    
+services:
+  projectx-identity:
+    container_name: projectx-identity
+    image: projectx-identity
+    environment:
+      - "ASPNETCORE_ENVIRONMENT=Development"
+    build:
+      context: .
+      dockerfile: src/ProjectX.Identity/Dockerfile
+    depends_on:
+      - redis
+      - rabbitmq
+      - placement
+      - zipkin
+    ports:
+      - "8080:8080"
+    networks:
+      - projectx-network
+
+  projectx-identity-dapr:
+    container_name: projectx-identity-dapr
+    image: "daprio/dapr:latest"
+    command: [
+      "./daprd",
+      "-app-id", "projectx-identity",
+      "-app-port", "8080",
+      "-placement-host-address", "placement:50006", # Dapr's placement service can be reach via the docker DNS entry
+      "-resources-path", "/components",
+      "-config", "/configuration/config.yaml",
+      "--enable-api-logging"
+    ]
+    depends_on:
+      - projectx-identity
+    network_mode: "service:projectx-identity"
+    volumes:
+      - "./dapr/components/:/components"
+      - "./dapr/configuration/:/configuration"
+  
+  projectx-web:
+    container_name: projectx-web
+    image: projectx-web
+    build:
+      context: .
+      dockerfile: src/ProjectX.Web/Dockerfile
+    environment:
+      - "ASPNETCORE_ENVIRONMENT=Development"
+    depends_on:
+      - redis
+      - rabbitmq
+      - placement
+      - zipkin
+    ports:
+      - "8081:8080"
+    networks:
+      - projectx-network
+  
+  projectx-web-dapr:
+    container_name: projectx-web-dapr
+    image: "daprio/daprd:latest"
+    command: [
+      "./daprd",
+      "--app-id", "projectx-web",
+      "--app-port", "8080",
+      "--placement-host-address", "placement:50006", # Dapr's placement service can be reach via the docker DNS entry
+      "-resources-path", "/components",
+      "-config", "/configuration/config.yaml"
+    ]
+    depends_on: 
+      - projectx-web
+    network_mode: "service:projectx-web"
+    volumes:
+      - "./dapr/components/:/components"
+      - "./dapr/configuration/:/configuration"
+        
+  # Dapr placement service
+  placement:
+    container_name: placement
+    image: "daprio/dapr"
+    command: [ "./placement", "-port", "50006" ]
+    ports:
+      - "50110:50006"
+    networks:
+      - projectx-network
+
+  # RabbitMQ pubsub
+  rabbitmq: &rmq
+    container_name: rabbitmq
+    image: "rabbitmq:management-alpine"
+    environment:
+      RABBITMQ_ERLANG_COOKIE: projectx-network
+      RABBITMQ_LOG: debug,+color
+    ports:
+      - "50111:5672"
+      - "15673:15672"
+      - "15693:15692"
+    networks:
+      - projectx-network
+
+  # Redis state store
+  redis:
+    container_name: redis
+    image: "redis:alpine"
+    ports:
+      - "50108:6379"
+    networks:
+      - projectx-network
+
+  # Zipkin tracing service
+  
+  zipkin:
+    container_name: zipkin
+    image: "openzipkin/zipkin-slim:2.23"
+    ports:
+      - "5411:9411"
+    networks:
+      - projectx-network
