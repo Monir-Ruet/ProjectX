@@ -102,6 +102,8 @@ jobs:
           echo "TF_VAR_container_image=${{env.AZURE_CONTAINER_IMAGE}}" >> $GITHUB_ENV
           echo "TF_VAR_dapr_app_id=${{env.DAPR_APP_ID}}" >> $GITHUB_ENV
           echo "TF_VAR_container_app_external_enabled=${{env.ENABLE_EXTERNAL}}" >> $GITHUB_ENV
+          echo "TF_VAR_vnet_name=${{secrets.AZURE_VIRTUAL_NETWORK_NAME}}" >> $GITHUB_ENV
+          echo "TF_VAR_vnet_subnet_name=${{secrets.AZURE_VIRTUAL_NETWORK_SUBNET_NAME}}" >> $GITHUB_ENV
 
       - name: Import Terraform State
         run: |
@@ -109,6 +111,7 @@ jobs:
           terraform import azurerm_resource_group.example /subscriptions/${{secrets.AZURE_SUBSCRIPTION_ID}}/resourceGroups/${{secrets.AZURE_RESOURCE_GROUP_NAME}} || true
           terraform import azurerm_container_registry.example /subscriptions/${{secrets.AZURE_SUBSCRIPTION_ID}}/resourceGroups/${{secrets.AZURE_RESOURCE_GROUP_NAME}}/providers/Microsoft.ContainerRegistry/registries/${{secrets.AZURE_CONTAINER_REGISTRY_NAME}} || true
           terraform import azurerm_container_app_environment.example /subscriptions/${{secrets.AZURE_SUBSCRIPTION_ID}}/resourceGroups/${{secrets.AZURE_RESOURCE_GROUP_NAME}}/providers/Microsoft.App/managedEnvironments/${{secrets.AZURE_CONTAINER_APP_ENV_NAME}} || true
+          terraform import azurerm_virtual_network.example /subscriptions/${{secrets.AZURE_SUBSCRIPTION_ID}}/resourceGroups/${{secrets.AZURE_RESOURCE_GROUP_NAME}}/providers/Microsoft.Network/virtualNetworks/${{secrets.AZURE_VIRTUAL_NETWORK_NAME}} || true
 
       - name: Apply Terraform Configuration and Deploy
         run: terraform apply -auto-approve
