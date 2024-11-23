@@ -1,0 +1,120 @@
+name: ProjectX-Web
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - src/ProjectX.Web/*
+
+  pull_request:
+    branches: ["main"]
+    paths:
+      - src/ProjectX.Web/*
+
+  workflow_dispatch:
+env:
+  LOCATION: "Southeast Asia"
+  ENABLE_EXTERNAL: true
+  AZURE_CONTAINER_APP_NAME: projectx-web
+  AZURE_CONTAINER_IMAGE: projectx.web
+  DAPR_APP_ID: projectx-web
+
+jobs:
+  # Job to build and test the application locally
+
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Restore .NET Dependencies
+        run: dotnet restore src/ProjectX.Web/ProjectX.Web.csproj
+      - name: Build .NET Application
+        run: dotnet build src/ProjectX.Web/ProjectX.Web.csproj -c Release
+      - name: Publish .NET Application
+        run: dotnet publish src/ProjectX.Web/ProjectX.Web.csproj
+
+  # Job to build Docker image and push it to Azure Container Registry
+  build-and-push-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Login to Azure Container Registry (ACR)
+        uses: azure/docker-login@v2
+        with:
+          login-server: ${{ secrets.AZURE_CONTAINER_REGISTRY_NAME }}.azurecr.io
+          username: ${{ secrets.AZURE_CONTAINER_REGISTRY_USERNAME }}
+          password: ${{ secrets.AZURE_CONTAINER_REGISTRY_PASSWORD }}
+
+      - name: Build and Push Docker Image to ACR
+        uses: docker/build-push-action@v6
+        with:
+          # push: ${{ github.event_name == 'pull_request' && github.event.pull_request.merged == true }}
+          push: true
+          tags: ${{ secrets.AZURE_CONTAINER_REGISTRY_NAME }}.azurecr.io/${{ env.AZURE_CONTAINER_IMAGE }}:latest
+          file: src/ProjectX.Web/Dockerfile
+          context: .
+
+  deploy-container-app:
+    needs:
+      - build-and-push-image
+      - build-and-test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: "infastructure/terraform"
+
+    # if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+
+      - name: Initialize Terraform
+        run: terraform init
+
+      - name: Set Terraform Environment Variables
+        run: |
+          echo "TF_VAR_subscription_id=${{secrets.AZURE_SUBSCRIPTION_ID}}" >> $GITHUB_ENV
+          echo "TF_VAR_location=${{env.LOCATION}}" >> $GITHUB_ENV
+          echo "TF_VAR_resource_group_name=${{secrets.AZURE_RESOURCE_GROUP_NAME}}" >> $GITHUB_ENV
+          echo "TF_VAR_acr_name=${{secrets.AZURE_CONTAINER_REGISTRY_NAME}}" >> $GITHUB_ENV
+          echo "TF_VAR_container_app_env_name=${{secrets.AZURE_CONTAINER_APP_ENV_NAME}}" >> $GITHUB_ENV
+          echo "TF_VAR_container_app_name=${{env.AZURE_CONTAINER_APP_NAME}}" >> $GITHUB_ENV
+          echo "TF_VAR_container_image=${{env.AZURE_CONTAINER_IMAGE}}" >> $GITHUB_ENV
+          echo "TF_VAR_dapr_app_id=${{env.DAPR_APP_ID}}" >> $GITHUB_ENV
+          echo "TF_VAR_container_app_external_enabled=${{env.ENABLE_EXTERNAL}}" >> $GITHUB_ENV
+          echo "TF_VAR_vnet_name=${{secrets.AZURE_VIRTUAL_NETWORK_NAME}}" >> $GITHUB_ENV
+          echo "TF_VAR_vnet_subnet_name=${{secrets.AZURE_VIRTUAL_NETWORK_SUBNET_NAME}}" >> $GITHUB_ENV
+          echo "TF_VAR_rabbitmq_host=${{secrets.AZURE_RABBITMQ_CONTAINER_HOST}}" >> $GITHUB_ENV
+          
+      - name: Import Terraform State
+        run: |
+          terraform import azurerm_container_app.example /subscriptions/${{secrets.AZURE_SUBSCRIPTION_ID}}/resourceGroups/${{secrets.AZURE_RESOURCE_GROUP_NAME}}/providers/Microsoft.App/containerApps/${{env.AZURE_CONTAINER_APP_NAME}} || true
+          terraform import azurerm_resource_group.example /subscriptions/${{secrets.AZURE_SUBSCRIPTION_ID}}/resourceGroups/${{secrets.AZURE_RESOURCE_GROUP_NAME}} || true
+          terraform import azurerm_container_registry.example /subscriptions/${{secrets.AZURE_SUBSCRIPTION_ID}}/resourceGroups/${{secrets.AZURE_RESOURCE_GROUP_NAME}}/providers/Microsoft.ContainerRegistry/registries/${{secrets.AZURE_CONTAINER_REGISTRY_NAME}} || true
+          terraform import azurerm_container_app_environment.example /subscriptions/${{secrets.AZURE_SUBSCRIPTION_ID}}/resourceGroups/${{secrets.AZURE_RESOURCE_GROUP_NAME}}/providers/Microsoft.App/managedEnvironments/${{secrets.AZURE_CONTAINER_APP_ENV_NAME}} || true
+          terraform import azurerm_virtual_network.example /subscriptions/${{secrets.AZURE_SUBSCRIPTION_ID}}/resourceGroups/${{secrets.AZURE_RESOURCE_GROUP_NAME}}/providers/Microsoft.Network/virtualNetworks/${{secrets.AZURE_VIRTUAL_NETWORK_NAME}} || true
+          terraform import azurerm_subnet.example /subscriptions/${{secrets.AZURE_SUBSCRIPTION_ID}}/resourceGroups/${{secrets.AZURE_RESOURCE_GROUP_NAME}}/providers/Microsoft.Network/virtualNetworks/${{secrets.AZURE_VIRTUAL_NETWORK_NAME}}/subnets/${{secrets.AZURE_VIRTUAL_NETWORK_SUBNET_NAME}} || true
+          terraform import azurerm_container_app_environment_dapr_component.example "/subscriptions/${{secrets.AZURE_SUBSCRIPTION_ID}}/resourceGroups/${{secrets.AZURE_RESOURCE_GROUP_NAME}}/providers/Microsoft.App/managedEnvironments/${{secrets.AZURE_CONTAINER_APP_ENV_NAME}}/daprComponents/pubsub" || true
+          
+      - name: Apply Terraform Configuration and Deploy
+        run: terraform apply -auto-approve
