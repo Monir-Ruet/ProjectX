@@ -17,7 +17,7 @@ env:
   ENABLE_EXTERNAL: true
   AZURE_CONTAINER_APP_NAME: projectx-identity
   AZURE_CONTAINER_IMAGE: projectx.identity
-  DAPR_APP_ID: projectx-auth
+  DAPR_APP_ID: projectx-identity
 
 jobs:
   # Job to build and test the application locally
