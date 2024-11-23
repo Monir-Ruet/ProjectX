@@ -1,5 +1,5 @@
 resource "azurerm_container_app_environment_dapr_component" "rabbitmq" {
-  name                         = "pubsub"
+  name                         = var.dapr_pubsub_component_name
   container_app_environment_id = azurerm_container_app_environment.example.id
   component_type               = "pubsub.rabbitmq"
   version                      = "v1"

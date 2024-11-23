@@ -66,3 +66,8 @@ variable "rabbitmq_host" {
   description = "Rabbitmq Host for dapr pubsub"
   type        = string
 }
+
+variable "dapr_pubsub_component_name" {
+  description = "Dapr pubsub component name"
+  type        = string
+}
