@@ -61,3 +61,8 @@ variable "vnet_subnet_name" {
   description = "Subnet for container apps"
   type        = string
 }
+
+variable "rabbitmq_host" {
+  description = "Rabbitmq Host for dapr pubsub"
+  type        = string
+}
