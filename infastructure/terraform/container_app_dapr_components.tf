@@ -57,5 +57,8 @@ resource "azurerm_container_app_environment_dapr_component" "rabbitmq" {
     value = "true"
   }
 
-  scopes = ["projectx-identity"]
+  scopes = [
+    "projectx-identity", 
+    "projectx-web"
+  ]
 }
