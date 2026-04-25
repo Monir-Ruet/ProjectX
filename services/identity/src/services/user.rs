@@ -31,10 +31,10 @@ impl Identity for IdentityService {
             .await
             .map(|user| {
                 tonic::Response::new(GUser {
-                    id: user
-                        .id
-                        .clone()
-                        .unwrap_or_else(|| uuid::Uuid::max().to_string()),
+                    id: match user.id {
+                        Some(id) => id.to_string(),
+                        None => "".to_string(),
+                    },
                     name: user.name.clone(),
                     email: user.email.clone(),
                     password: user.password.clone(),

@@ -1,13 +1,12 @@
 [workspace]
 resolver = "3"
-members = ["services/identity","services/web"]
+members = ["services/identity","services/web", "shared/domain"]
 
 [workspace.dependencies]
 tokio = { version = "1.52.1", features = ["full"] }
 anyhow = { version = "1.0.102" }
 axum = { version = "0.8.9" }
 bcrypt = { version = "0.19.0" }
-dapr = { version = "0.17.0" }
 prost = { version = "0.14.3" }
 serde = { version = "1.0.228" }
 tonic = { version = "0.14.5" }
@@ -15,7 +14,10 @@ tonic-prost = { version = "0.14.5" }
 tonic-prost-build = { version = "0.14.5" }
 tracing = { version = "0.1.44" }
 tracing-subscriber = { version = "0.3.23" }
-sqlx = { version = "0.8.6", features = ["postgres", "runtime-tokio-native-tls"] }
+sqlx = { version = "0.8.6", features = ["postgres", "runtime-tokio-native-tls", "uuid"] }
 dotenv = { version = "0.15.0" }
 jsonwebtoken = { version = "10.3.0" }
-uuid = { version = "1.23.1" }
+uuid = { version = "1.23.1", features = ["v4", "serde"] }
+tower = { version = "0.5.3", features = ["full"] }
+chrono = { version = "0.4.44", features = ["serde"] }
+tower-http = { version = "0.6.8", features = ["trace"] }

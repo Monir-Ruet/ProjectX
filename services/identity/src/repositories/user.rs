@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::Error;
 use sqlx::PgPool;
 use sqlx::prelude::FromRow;
+use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct UserRepository {
@@ -11,7 +12,7 @@ pub struct UserRepository {
 
 #[derive(Debug, Serialize, Deserialize, FromRow)]
 pub struct User {
-    pub id: Option<String>,
+    pub id: Option<Uuid>,
     pub name: String,
     pub email: String,
     pub password: String,
@@ -114,7 +115,6 @@ mod tests {
             .get_user_by_email("bob@example.com")
             .await
             .expect("Failed to get user");
-        println!("User: {:?}", user);
         assert_eq!(user.name, "Bob");
         Ok(())
     }

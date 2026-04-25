@@ -7,7 +7,6 @@ edition = "2024"
 anyhow ={ workspace = true }
 axum = { workspace = true }
 bcrypt = { workspace = true }
-dapr = { workspace = true }
 dotenv = { workspace = true }
 jsonwebtoken = { workspace = true }
 prost = { workspace = true }

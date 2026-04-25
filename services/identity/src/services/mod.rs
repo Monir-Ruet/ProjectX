@@ -7,6 +7,7 @@ use crate::{
 };
 use anyhow::Result;
 use tonic::transport::Server;
+use tracing::info;
 
 pub mod auth;
 pub mod user;
@@ -16,6 +17,8 @@ pub async fn init_services(state: AppState) -> Result<()> {
 
     let auth = AuthService::new(state.clone());
     let user = IdentityService::new(state.clone());
+
+    info!("Starting gRPC server on {}", addr);
 
     Server::builder()
         .add_service(AuthServer::new(auth))
