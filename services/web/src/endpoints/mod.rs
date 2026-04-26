@@ -1,4 +1,5 @@
 mod health;
+pub mod metrics;
 mod user;
 
 use crate::endpoints::{
@@ -26,9 +27,12 @@ impl AppState {
 }
 
 pub async fn routes() -> Router<AppState> {
+    metrics::init();
+
     Router::new()
         .route("/", get(|| async { "Welcome to ProjectX Web Service!" }))
         .merge(user::routes())
+        .merge(metrics::metrics_router())
         .route("/health/live", get(liveness))
         .route("/health/ready", get(readiness))
         .into()
