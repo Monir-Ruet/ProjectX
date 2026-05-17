@@ -1,14 +1,20 @@
-use std::{env, sync::OnceLock};
+use std::sync::OnceLock;
 
 #[derive(Clone, Debug)]
 pub struct AppConfig {
-    pub grpc_url: String,
+    pub database_url: String,
+    pub secret_key: String,
+    pub access_token_expiry: i64,
+    pub refresh_token_expiry: i64,
 }
 
 impl AppConfig {
     fn load() -> Self {
         AppConfig {
-            grpc_url: env::var("GRPC_URL").unwrap_or_else(|_| "http://127.0.0.1:50051".into()),
+            database_url: std::env::var("DATABASE_URL").expect("DATABASE_URL must be set"),
+            secret_key: std::env::var("SECRET_KEY").expect("SECRET_KEY must be set"),
+            access_token_expiry: 15 * 60,            // 15 minutes
+            refresh_token_expiry: 30 * 24 * 60 * 60, // 30 days
         }
     }
 }

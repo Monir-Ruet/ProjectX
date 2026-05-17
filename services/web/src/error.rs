@@ -1,63 +1,57 @@
-use axum::{
-    Json,
-    http::StatusCode,
-    response::{IntoResponse, Response},
-};
+use axum::{Json, http::StatusCode, response::IntoResponse};
 use serde::Serialize;
-use tonic::{Code, Status};
+use serde_json::Value;
 
 #[derive(Debug)]
-pub enum Error {
-    Grpc(Status),
-    GrpcConnection(String),
+pub enum AppError {
+    NotFound(Value),
+    BadRequest(Value),
+    Internal(Value),
+    Conflict(Value),
+    Unauthorized(Value),
+    Forbidden(Value),
 }
 
 #[derive(Serialize)]
-struct ErrorResponse {
-    success: bool,
-    message: String,
+pub struct ProblemDetails {
+    #[serde(rename = "type")]
+    pub problem_type: String,
+    pub title: String,
+    pub status: u16,
+    pub detail: Option<Value>,
+    pub instance: Option<String>,
 }
 
-impl From<Status> for Error {
-    fn from(status: Status) -> Self {
-        Error::Grpc(status)
-    }
-}
+impl IntoResponse for AppError {
+    fn into_response(self) -> axum::response::Response {
+        let (status, title, detail) = match self {
+            AppError::NotFound(detail) => (StatusCode::NOT_FOUND, "Not Found", Some(detail)),
 
-impl IntoResponse for Error {
-    fn into_response(self) -> Response {
-        let (status, message) = match self {
-            Error::Grpc(status) => map_grpc_status(&status),
-            Error::GrpcConnection(msg) => (StatusCode::BAD_GATEWAY, msg),
+            AppError::BadRequest(detail) => (StatusCode::BAD_REQUEST, "Bad Request", Some(detail)),
+
+            AppError::Internal(detail) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Internal Server Error",
+                Some(detail),
+            ),
+
+            AppError::Conflict(detail) => (StatusCode::CONFLICT, "Conflict", Some(detail)),
+
+            AppError::Unauthorized(detail) => {
+                (StatusCode::UNAUTHORIZED, "Unauthorized", Some(detail))
+            }
+
+            AppError::Forbidden(detail) => (StatusCode::FORBIDDEN, "Forbidden", Some(detail)),
         };
 
-        let body = Json(ErrorResponse {
-            success: false,
-            message,
-        });
+        let body = ProblemDetails {
+            problem_type: "https://tools.ietf.org/html/rfc9110#section-15.5.5".to_string(),
+            title: title.to_string(),
+            status: status.as_u16(),
+            detail,
+            instance: None,
+        };
 
-        (status, body).into_response()
-    }
-}
-
-fn map_grpc_status(status: &Status) -> (StatusCode, String) {
-    match status.code() {
-        Code::AlreadyExists => (StatusCode::CONFLICT, "Already exists".to_string()),
-        Code::NotFound => (StatusCode::NOT_FOUND, "Not found".to_string()),
-        Code::InvalidArgument => (StatusCode::BAD_REQUEST, status.message().to_string()),
-        Code::Unauthenticated => (
-            StatusCode::UNAUTHORIZED,
-            "Authentication required".to_string(),
-        ),
-        Code::PermissionDenied => (StatusCode::FORBIDDEN, "Permission denied".to_string()),
-        Code::Unavailable => (
-            StatusCode::SERVICE_UNAVAILABLE,
-            "Service unavailable".to_string(),
-        ),
-        Code::DeadlineExceeded => (StatusCode::GATEWAY_TIMEOUT, "Request timeout".to_string()),
-        _ => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "Internal server error".to_string(),
-        ),
+        (status, Json(body)).into_response()
     }
 }

@@ -1,30 +1,18 @@
+mod doc;
 mod health;
 pub mod metrics;
 mod user;
 
-use crate::endpoints::{
-    health::{liveness, readiness},
-    user::identity_service::identity_client::IdentityClient,
+use crate::{
+    endpoints::{
+        doc::ApiDoc,
+        health::{liveness, readiness},
+    },
+    state::AppState,
 };
 use axum::{Router, routing::get};
-use tonic::transport::Channel;
-
-#[derive(Clone)]
-pub struct AppState {
-    identity_client: IdentityClient<Channel>,
-}
-
-impl AppState {
-    pub async fn new() -> Self {
-        let cfg = crate::config::get_or_init();
-        let identity_grpc_client = IdentityClient::connect(cfg.grpc_url.clone())
-            .await
-            .expect("Failed to connect to gRPC service");
-        AppState {
-            identity_client: identity_grpc_client,
-        }
-    }
-}
+use utoipa::OpenApi;
+use utoipa_scalar::{Scalar, Servable};
 
 pub async fn routes() -> Router<AppState> {
     metrics::init();
@@ -35,5 +23,6 @@ pub async fn routes() -> Router<AppState> {
         .merge(metrics::metrics_router())
         .route("/health/live", get(liveness))
         .route("/health/ready", get(readiness))
+        .merge(Scalar::with_url("/scalar", ApiDoc::openapi()))
         .into()
 }

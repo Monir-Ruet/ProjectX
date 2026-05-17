@@ -50,32 +50,22 @@ lazy_static! {
     pub static ref HTTP_REQUESTS_TOTAL: IntCounterVec = IntCounterVec::new(
         Opts::new("http_requests_total", "Total HTTP requests"),
         &["method", "route", "status"]
-    ).unwrap();
+    )
+    .unwrap();
     pub static ref HTTP_ERRORS_TOTAL: IntCounterVec = IntCounterVec::new(
         Opts::new("http_errors_total", "Total HTTP errors"),
         &["method", "route"]
-    ).unwrap();
-    // Gauges
-    pub static ref ACTIVE_CONNECTIONS: IntGauge = IntGauge::new(
-        "http_active_connections",
-        "Active HTTP connections"
-    ).unwrap();
-    pub static ref SYSTEM_MEMORY: IntGauge = IntGauge::new(
-        "system_total_memory_megabytes",
-        "Total system memory"
-    ).unwrap();
-    pub static ref SYSTEM_MEMORY_USAGE: Gauge = Gauge::new(
-        "system_memory_usage_megabytes",
-        "Total system memory usage"
-    ).unwrap();
-    pub static ref APP_MEMORY_USAGE: Gauge = Gauge::new(
-        "app_memory_usage_megabytes",
-        "Memory usage"
-    ).unwrap();
-    pub static ref APP_CPU_USAGE: Gauge = Gauge::new(
-        "app_cpu_usage",
-        "CPU usage"
-    ).unwrap();
+    )
+    .unwrap();
+    pub static ref ACTIVE_CONNECTIONS: IntGauge =
+        IntGauge::new("http_active_connections", "Active HTTP connections").unwrap();
+    pub static ref SYSTEM_MEMORY: IntGauge =
+        IntGauge::new("system_total_memory_megabytes", "Total system memory").unwrap();
+    pub static ref SYSTEM_MEMORY_USAGE: Gauge =
+        Gauge::new("system_memory_usage_megabytes", "Total system memory usage").unwrap();
+    pub static ref APP_MEMORY_USAGE: Gauge =
+        Gauge::new("app_memory_usage_megabytes", "Memory usage").unwrap();
+    pub static ref APP_CPU_USAGE: Gauge = Gauge::new("app_cpu_usage", "CPU usage").unwrap();
     pub static ref APP_CPU_SECONDS: Gauge =
         Gauge::new("app_cpu_seconds_total", "CPU time").unwrap();
 }

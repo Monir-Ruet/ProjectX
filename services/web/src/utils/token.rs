@@ -1,0 +1,95 @@
+use jsonwebtoken::{DecodingKey, EncodingKey, Header, TokenData, Validation, decode, encode};
+use thiserror::Error;
+use uuid::Uuid;
+
+use crate::{
+    config::{self},
+    models::user::AccessTokenResponse,
+    utils::jwt::{AccessClaims, RefreshClaims},
+};
+
+#[derive(Error, Debug)]
+pub enum TokenError {
+    #[error("Token encoding failed")]
+    EncodingFailed(#[from] jsonwebtoken::errors::Error),
+
+    #[error("Token validation failed")]
+    ValidationFailed,
+
+    #[error("Token expired")]
+    Expired,
+
+    #[error("Invalid token type")]
+    InvalidType,
+}
+
+pub fn generate_access_token(
+    user_id: Uuid,
+    email: String,
+    role: String,
+    jti: Uuid,
+) -> Result<String, TokenError> {
+    let config = config::get_or_init();
+    let encoding_key = EncodingKey::from_secret(config.secret_key.as_bytes());
+    let claims = AccessClaims::new(user_id, email, role, chrono::Duration::minutes(15), jti);
+
+    encode(&Header::default(), &claims, &encoding_key).map_err(TokenError::EncodingFailed)
+}
+
+pub fn generate_refresh_token(user_id: Uuid, jti: Uuid) -> Result<String, TokenError> {
+    let config = config::get_or_init();
+    let encoding_key = EncodingKey::from_secret(config.secret_key.as_bytes());
+    let claims = RefreshClaims::new(user_id, chrono::Duration::days(30), jti);
+
+    encode(&Header::default(), &claims, &encoding_key).map_err(TokenError::EncodingFailed)
+}
+
+pub fn generate_token_pair(
+    user_id: Uuid,
+    email: String,
+    role: String,
+    jti: Uuid,
+) -> Result<AccessTokenResponse, TokenError> {
+    Ok(AccessTokenResponse {
+        access_token: generate_access_token(user_id, email, role, jti)?,
+        refresh_token: generate_refresh_token(user_id, jti.clone())?,
+        token_type: "Bearer".to_string(),
+        expires_in: chrono::Duration::minutes(15).num_seconds() as u64,
+    })
+}
+
+pub fn validate_access_token(token: &str) -> Result<AccessClaims, TokenError> {
+    let mut validation = Validation::default();
+    validation.validate_exp = true;
+
+    let config = config::get_or_init();
+    let decoding_key = DecodingKey::from_secret(config.secret_key.as_bytes());
+    let token_data: TokenData<AccessClaims> =
+        decode(token, &decoding_key, &validation).map_err(|_| TokenError::ValidationFailed)?;
+
+    if token_data.claims.typ != "access_token" {
+        return Err(TokenError::InvalidType);
+    } else if token_data.claims.is_expired() {
+        return Err(TokenError::Expired);
+    }
+
+    Ok(token_data.claims)
+}
+
+pub fn validate_refresh_token(token: &str) -> Result<RefreshClaims, TokenError> {
+    let mut validation = Validation::default();
+    validation.validate_exp = true;
+
+    let config = config::get_or_init();
+    let decoding_key = DecodingKey::from_secret(config.secret_key.as_bytes());
+    let token_data: TokenData<RefreshClaims> =
+        decode(token, &decoding_key, &validation).map_err(|_| TokenError::ValidationFailed)?;
+
+    if token_data.claims.typ != "refresh_token" {
+        return Err(TokenError::InvalidType);
+    } else if token_data.claims.is_expired() {
+        return Err(TokenError::Expired);
+    }
+
+    Ok(token_data.claims)
+}

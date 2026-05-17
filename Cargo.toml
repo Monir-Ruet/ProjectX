@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["services/identity","services/web", "shared/domain"]
+members = ["services/web", "shared/domain"]
 
 [workspace.dependencies]
 tokio = { version = "1.52.1", features = ["full"] }
@@ -14,10 +14,21 @@ tonic-prost = { version = "0.14.5" }
 tonic-prost-build = { version = "0.14.5" }
 tracing = { version = "0.1.44" }
 tracing-subscriber = { version = "0.3.23" }
-sqlx = { version = "0.8.6", features = ["postgres", "runtime-tokio-native-tls", "uuid"] }
+sqlx = { version = "0.8.6", features = ["sqlite", "postgres", "runtime-tokio-native-tls", "uuid", "chrono"] }
 dotenv = { version = "0.15.0" }
-jsonwebtoken = { version = "10.3.0" }
+jsonwebtoken = { version = "10.3.0", features = ["aws_lc_rs"] }
 uuid = { version = "1.23.1", features = ["v4", "serde"] }
 tower = { version = "0.5.3", features = ["full"] }
 chrono = { version = "0.4.44", features = ["serde"] }
 tower-http = { version = "0.6.8", features = ["trace"] }
+async-trait = { version = "0.1.89" }
+serde_json = { version =  "1.0.149" }
+utoipa-scalar = { version = "0.3.0", features = ["axum"] }
+utoipa = {version = "5.5.0" }
+thiserror = {version = "2.0.18" }
+validator = { version = "0.20.0", features = ["derive"] }
+argon2 = { version = "0.5.3" }
+lazy_static ={ version ="1.5.0" }
+sysinfo = { version = "0.38.4" }
+axum-extra = { version = "0.12.6", features = ["cookie-private", "typed-header"] }
+cookie = { version = "0.18.1" }
