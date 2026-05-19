@@ -50,21 +50,6 @@ impl SessionRepository for Repository {
         Ok(session)
     }
 
-    async fn delete_user_sessions(&self, user_id: Uuid) -> Result<(), sqlx::Error> {
-        sqlx::query(
-            r#"
-                DELETE FROM sessions 
-                WHERE 
-                    user_id = $1
-            "#,
-        )
-        .bind(user_id)
-        .execute(&self.pool)
-        .await?;
-
-        Ok(())
-    }
-
     async fn delete_session_by_id(&self, id: Uuid) -> Result<(), sqlx::Error> {
         sqlx::query(
             r#"
@@ -96,6 +81,21 @@ impl SessionRepository for Repository {
         .bind(session.user_agent)
         .bind(session.expires_at)
         .bind(id)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    async fn delete_user_sessions(&self, user_id: Uuid) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            r#"
+                DELETE FROM sessions 
+                WHERE 
+                    user_id = $1
+            "#,
+        )
+        .bind(user_id)
         .execute(&self.pool)
         .await?;
 

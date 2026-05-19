@@ -15,21 +15,23 @@ pub trait UserRepository {
 #[async_trait]
 impl UserRepository for Repository {
     async fn find_user_by_id(&self, id: Uuid) -> Result<User, sqlx::Error> {
-        sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = $1")
+        sqlx::query_as::<_, User>(
+            r#"
+                SELECT * FROM users 
+                WHERE 
+                    id = $1
+                "#)
             .bind(id)
             .fetch_one(&self.pool)
             .await
     }
 
-    async fn find_user_by_email(&self, email: &str) -> Result<User, sqlx::Error> {
-        sqlx::query_as::<_, User>("SELECT * FROM users WHERE email = $1")
-            .bind(email)
-            .fetch_one(&self.pool)
-            .await
-    }
-
     async fn create_user(&self, user: User) -> Result<(), sqlx::Error> {
-        sqlx::query("INSERT INTO users (name, email, password, role) VALUES ($1, $2, $3, $4)")
+        sqlx::query(
+            r#"
+                INSERT INTO users (name, email, password, role) 
+                VALUES ($1, $2, $3, $4)
+                "#)
             .bind(user.name)
             .bind(user.email)
             .bind(user.password)
@@ -41,7 +43,12 @@ impl UserRepository for Repository {
     }
 
     async fn delete_user_by_id(&self, id: Uuid) -> Result<(), sqlx::Error> {
-        sqlx::query("DELETE FROM users WHERE id = $1")
+        sqlx::query(
+            r#"
+                DELETE FROM users 
+                WHERE 
+                    id = $1
+                "#)
             .bind(id)
             .execute(&self.pool)
             .await?;
@@ -50,14 +57,32 @@ impl UserRepository for Repository {
     }
 
     async fn update_user(&self, id: Uuid, user: User) -> Result<(), sqlx::Error> {
-        sqlx::query("UPDATE users SET name = $1, email = $2, password = $3 WHERE id = $4")
+        sqlx::query(
+            r#"
+                UPDATE users
+                SET name = $1, 
+                    password = $2,
+                    updated_at = NOW () 
+                WHERE id = $3
+                "#)
             .bind(user.name)
-            .bind(user.email)
             .bind(user.password)
             .bind(id)
             .execute(&self.pool)
             .await?;
 
         Ok(())
+    }
+
+    async fn find_user_by_email(&self, email: &str) -> Result<User, sqlx::Error> {
+        sqlx::query_as::<_, User>(
+            r#"
+                 SELECT * FROM users
+                 WHERE 
+                     email = $1
+                 "#)
+            .bind(email)
+            .fetch_one(&self.pool)
+            .await
     }
 }

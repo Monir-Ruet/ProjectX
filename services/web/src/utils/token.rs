@@ -4,9 +4,9 @@ use uuid::Uuid;
 
 use crate::{
     config::{self},
-    models::user::AccessTokenResponse,
     utils::jwt::{AccessClaims, RefreshClaims},
 };
+use crate::models::users::signin::AccessTokenResponse;
 
 #[derive(Error, Debug)]
 pub enum TokenError {

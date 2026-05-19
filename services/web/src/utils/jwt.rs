@@ -1,6 +1,4 @@
-use crate::config::get_or_init;
 use chrono::{Duration, Utc};
-use jsonwebtoken::{EncodingKey, Header, encode};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -61,48 +59,11 @@ impl RefreshClaims {
             iat: now.timestamp(),
             typ: "refresh_token".to_string(),
             family: Uuid::new_v4(),
-            jti: jti,
+            jti,
         }
     }
 
     pub fn is_expired(&self) -> bool {
         Utc::now().timestamp() > self.exp
-    }
-}
-
-pub fn encode_token(claims: &AccessClaims) -> String {
-    let config = get_or_init();
-    let token = encode(
-        &Header::default(),
-        &claims,
-        &EncodingKey::from_secret(config.secret_key.as_bytes()),
-    )
-    .unwrap();
-    token
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn test_encode_token() {
-        dotenv::dotenv().ok();
-
-        let now = 1_700_000_000usize;
-
-        let claims = AccessClaims {
-            sub: Uuid::new_v4(),
-            exp: now as i64 + 3600,
-            iat: now as i64,
-            typ: "access_token".to_string(),
-            email: "john.doe@example.com".to_string(),
-            role: "user".to_string(),
-            jti: Uuid::new_v4(),
-        };
-
-        let token = encode_token(&claims);
-
-        assert!(!token.is_empty());
-        assert!(token.split('.').count() == 3); // basic JWT structure check
     }
 }

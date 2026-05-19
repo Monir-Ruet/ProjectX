@@ -1,41 +1,40 @@
-use std::net::SocketAddr;
-use uuid::Uuid;
-
+use crate::extractor::auth::AuthorizedUser;
+use crate::extractor::role::{Admin, AppUser, RequireRole};
+use crate::models::users::refresh::RefreshRequest;
+use crate::models::users::register::RegisterRequest;
+use crate::models::users::signin::{AccessTokenResponse, SignInRequest};
+use crate::models::users::user::{UserResponse, UserUpdateRequest};
+use crate::utils::cookie::set_cookie;
 use crate::{
     endpoints::AppState,
     error::AppError,
     extractor::validated::Validated,
-    middlewares::auth::AuthUser,
-    models::user::{
-        AccessTokenResponse, RefreshRequest, RegisterRequest, SignInRequest, UserResponse,
-    },
     services::{session::SessionService, user::UserService},
     utils::token::{self},
 };
+use axum::routing::{delete, put};
 use axum::{
-    Json, Router,
-    extract::{ConnectInfo, State},
-    http::{HeaderMap, StatusCode},
-    routing::{delete, get, post, put},
+    extract::{ConnectInfo, State}, http::{HeaderMap, StatusCode},
+    routing::{get, post},
+    Json,
+    Router,
 };
 use axum_extra::extract::PrivateCookieJar;
-use cookie::Cookie;
-use domain::entities::users::user::User;
+use std::net::SocketAddr;
+use uuid::Uuid;
+
 
 pub fn routes() -> Router<AppState> {
     Router::new()
-        .nest(
-            "/users",
-            Router::new()
-                .route("/", post(register_user))
-                .route("/{id}", get(find_user_by_id))
-                .route("/{id}", put(update_user))
-                .route("/{id}", delete(delete_user_by_id)),
-        )
+        .route("/users/{id}", get(find_user_by_id))
+        .route("/register", post(register_user))
         .route("/signin", post(signin))
         .route("/refresh", post(refresh))
-        .route("/logout", post(logout))
+        .route("/sign_out", post(sign_out))
         .route("/me", get(me))
+        .route("/me", put(update_me))
+        .route("/me", delete(delete_me))
+        .route("/ping", get(is_authenticated))
 }
 
 #[utoipa::path(
@@ -75,18 +74,16 @@ pub async fn signin(
     let token = token::generate_token_pair(user.id, user.email.clone(), user.role, jti)
         .map_err(|_| AppError::Unauthorized("failed to generate token".into()))?;
 
-    let access_cookie = Cookie::build(("m_session", token.access_token.clone()))
-        .path("/")
-        .http_only(true)
-        .secure(true)
-        .max_age(cookie::time::Duration::seconds(config.access_token_expiry))
-        .build();
-    let refresh_cookie = Cookie::build(("m_refresh", token.refresh_token.clone()))
-        .path("/")
-        .http_only(true)
-        .secure(true)
-        .max_age(cookie::time::Duration::seconds(config.refresh_token_expiry))
-        .build();
+    let access_cookie = set_cookie(
+        String::from("m_session"),
+        token.access_token.clone(),
+        config.access_token_expiry,
+    );
+    let refresh_cookie = set_cookie(
+        String::from("m_refresh"),
+        token.refresh_token.clone(),
+        config.refresh_token_expiry,
+    );
 
     jar = jar.add(access_cookie);
     jar = jar.add(refresh_cookie);
@@ -96,7 +93,7 @@ pub async fn signin(
 
 #[utoipa::path(
     post,
-    path = "/users",
+    path = "/register",
     request_body = RegisterRequest,
     responses(
         (status = 201, description = "User created")
@@ -106,15 +103,7 @@ pub async fn register_user(
     State(state): State<AppState>,
     Validated(request): Validated<RegisterRequest>,
 ) -> Result<StatusCode, AppError> {
-    state
-        .service
-        .create_user(User::new(
-            request.name,
-            request.email,
-            request.password,
-            "user".to_string(),
-        ))
-        .await?;
+    state.service.create_user(request.into()).await?;
     Ok(StatusCode::CREATED)
 }
 
@@ -155,18 +144,16 @@ pub async fn refresh(
         token::generate_token_pair(user.id, user.email.clone(), user.role, claims.jti.clone())
             .map_err(|_| AppError::Unauthorized("failed to generate token".into()))?;
 
-    let access_cookie = Cookie::build(("m_session", token.access_token.clone()))
-        .path("/")
-        .http_only(true)
-        .secure(true)
-        .max_age(cookie::time::Duration::seconds(config.access_token_expiry))
-        .build();
-    let refresh_cookie = Cookie::build(("m_refresh", token.refresh_token.clone()))
-        .path("/")
-        .http_only(true)
-        .secure(true)
-        .max_age(cookie::time::Duration::seconds(config.refresh_token_expiry))
-        .build();
+    let access_cookie = set_cookie(
+        String::from("m_session"),
+        token.access_token.clone(),
+        config.access_token_expiry,
+    );
+    let refresh_cookie = set_cookie(
+        String::from("m_refresh"),
+        token.refresh_token.clone(),
+        config.refresh_token_expiry,
+    );
 
     jar = jar.add(access_cookie);
     jar = jar.add(refresh_cookie);
@@ -175,20 +162,36 @@ pub async fn refresh(
 }
 
 #[utoipa::path(
-    get,
-    path = "/logout",
-    request_body = RefreshRequest,
+    post,
+    path = "/sign_out",
+    responses(
+        (status = 200, description = "Session logged out"),
+    )
 )]
-pub async fn logout(
+pub async fn sign_out(
     State(state): State<AppState>,
-    Json(request): Json<RefreshRequest>,
+    RequireRole::<Admin>(user, _): RequireRole<Admin>,
 ) -> Result<StatusCode, AppError> {
-    if let Ok(claims) = token::validate_refresh_token(&request.refresh_token) {
-        // Revoke the token family
-        // revoke_token_family(&claims.family).await;
-        tracing::info!(user.id = %claims.sub, "User logged out");
-    }
+    state.service.delete_session(user.jti).await?;
+    Ok(StatusCode::NO_CONTENT)
+}
 
+#[utoipa::path(
+    put,
+    path = "/me",
+    request_body = UserUpdateRequest,
+    responses(
+        (status = 200, body = ()),
+        (status = 404, description = "User not found"),
+        (status = 500, description = "Failed to update user")
+    )
+)]
+pub async fn update_me(
+    State(state): State<AppState>,
+    RequireRole::<AppUser>(user, _): RequireRole<AppUser>,
+    Json(request): Json<UserUpdateRequest>,
+) -> Result<StatusCode, AppError> {
+    state.service.update_user(user.id, request.into()).await?;
     Ok(StatusCode::OK)
 }
 
@@ -202,19 +205,12 @@ pub async fn logout(
 )]
 pub async fn me(
     State(state): State<AppState>,
-    auth_user: AuthUser,
+    auth_user: AuthorizedUser,
+    RequireRole::<AppUser>(_, _): RequireRole<AppUser>,
 ) -> Result<Json<UserResponse>, AppError> {
-    let user = state
-        .service
-        .get_user_by_id(auth_user.id)
-        .await
-        .map_err(|_| AppError::NotFound("User not found".into()))?;
+    let user = state.service.get_user_by_id(auth_user.id).await?;
 
-    Ok(Json(UserResponse {
-        id: user.id.to_string(),
-        name: user.name,
-        email: user.email,
-    }))
+    Ok(Json(user.into()))
 }
 
 #[utoipa::path(
@@ -232,46 +228,13 @@ pub async fn find_user_by_id(
     State(state): State<AppState>,
     axum::extract::Path(id): axum::extract::Path<Uuid>,
 ) -> Result<Json<UserResponse>, AppError> {
-    let user = state.service.get_user_by_id(id).await.unwrap();
-    Ok(Json(UserResponse {
-        id: user.id.to_string(),
-        name: user.name,
-        email: user.email,
-    }))
-}
-
-#[utoipa::path(
-    put,
-    path = "/users/{id}",
-    params(
-        ("id" = String, Path)
-    ),
-    request_body = RegisterRequest,
-    responses(
-        (status = 200, description = "User updated")
-    )
-)]
-pub async fn update_user(
-    State(state): State<AppState>,
-    axum::extract::Path(id): axum::extract::Path<Uuid>,
-    Json(request): Json<RegisterRequest>,
-) -> Result<StatusCode, AppError> {
-    let existing = state.service.get_user_by_id(id).await.unwrap();
-
-    state
-        .service
-        .update_user(
-            id,
-            User::new(request.name, request.email, request.password, existing.role),
-        )
-        .await?;
-
-    Ok(StatusCode::OK)
+    let user = state.service.get_user_by_id(id).await?;
+    Ok(Json(user.into()))
 }
 
 #[utoipa::path(
     delete,
-    path = "/users/{id}",
+    path = "/me",
     params(
         ("id" = String, Path)
     ),
@@ -279,19 +242,31 @@ pub async fn update_user(
         (status = 204, description = "User deleted")
     )
 )]
-pub async fn delete_user_by_id(
+pub async fn delete_me(
     State(state): State<AppState>,
     axum::extract::Path(id): axum::extract::Path<Uuid>,
 ) -> Result<StatusCode, AppError> {
-    state.service.delete_user_by_id(id).await.unwrap();
+    state.service.delete_user_by_id(id).await?;
 
     Ok(StatusCode::NO_CONTENT)
+}
+
+#[utoipa::path(
+    get,
+    path = "/ping",
+    responses(
+        (status = 200, description = "authorized"),
+        (status = 401, description = "unauthorized access")
+    )
+)]
+pub async fn is_authenticated(_: AuthorizedUser) -> Result<StatusCode, AppError> {
+    Ok(StatusCode::OK)
 }
 
 #[cfg(test)]
 mod tests {
     #[test]
     fn test_create_user() {
-        assert!(1 + 1 == 2);
+        assert_eq!(1 + 1, 2);
     }
 }

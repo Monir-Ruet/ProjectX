@@ -8,7 +8,7 @@ use uuid::Uuid;
 pub trait SessionService {
     async fn create_session(
         &self,
-        user_id: uuid::Uuid,
+        user_id: Uuid,
         user_agent: String,
         ip: String,
     ) -> Result<Uuid, AppError>;
@@ -20,7 +20,7 @@ pub trait SessionService {
 impl SessionService for Services {
     async fn create_session(
         &self,
-        user_id: uuid::Uuid,
+        user_id: Uuid,
         user_agent: String,
         ip: String,
     ) -> Result<Uuid, AppError> {
