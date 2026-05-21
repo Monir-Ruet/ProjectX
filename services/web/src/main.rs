@@ -25,20 +25,19 @@ async fn main() -> Result<()> {
 
     let state = state::AppState::new().await?;
 
-    let app = endpoints::routes()
-        .await
-        .with_state(state)
-        .layer(ServiceBuilder::new()
+    let app = endpoints::routes().await.with_state(state).layer(
+        ServiceBuilder::new()
             .layer(TraceLayer::new_for_http())
             .layer(CorsLayer::new())
-            .layer(CompressionLayer::new().br(true).gzip(true))
-        );
+            .layer(CompressionLayer::new().br(true).gzip(true)),
+    );
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8080").await?;
     axum::serve(
         listener,
         app.into_make_service_with_connect_info::<SocketAddr>(),
-    ).await?;
+    )
+    .await?;
 
     Ok(())
 }

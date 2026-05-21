@@ -2,11 +2,11 @@ use jsonwebtoken::{DecodingKey, EncodingKey, Header, TokenData, Validation, deco
 use thiserror::Error;
 use uuid::Uuid;
 
+use crate::models::users::signin::AccessTokenResponse;
 use crate::{
     config::{self},
     utils::jwt::{AccessClaims, RefreshClaims},
 };
-use crate::models::users::signin::AccessTokenResponse;
 
 #[derive(Error, Debug)]
 pub enum TokenError {

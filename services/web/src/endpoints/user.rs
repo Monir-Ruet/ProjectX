@@ -2,9 +2,8 @@ use crate::extractor::auth::AuthorizedUser;
 use crate::extractor::role::{Admin, AppUser, RequireRole};
 use crate::models::users::refresh::RefreshRequest;
 use crate::models::users::register::RegisterRequest;
-use crate::models::users::signin::{AccessTokenResponse, SignInRequest};
+use crate::models::users::signin::{AccessTokenResponse, SignInProviderRequest, SignInRequest};
 use crate::models::users::user::{UserResponse, UserUpdateRequest};
-use crate::utils::cookie::set_cookie;
 use crate::{
     endpoints::AppState,
     error::AppError,
@@ -12,23 +11,24 @@ use crate::{
     services::{session::SessionService, user::UserService},
     utils::token::{self},
 };
+use axum::extract::Path;
 use axum::routing::{delete, put};
 use axum::{
-    extract::{ConnectInfo, State}, http::{HeaderMap, StatusCode},
+    Json, Router,
+    extract::{ConnectInfo, State},
+    http::{HeaderMap, StatusCode},
     routing::{get, post},
-    Json,
-    Router,
 };
-use axum_extra::extract::PrivateCookieJar;
 use std::net::SocketAddr;
 use uuid::Uuid;
 
-
 pub fn routes() -> Router<AppState> {
     Router::new()
+        .route("/register/", post(register_user))
         .route("/users/{id}", get(find_user_by_id))
         .route("/register", post(register_user))
         .route("/signin", post(signin))
+        .route("/signin/{provider_name}", post(signin_provider))
         .route("/refresh", post(refresh))
         .route("/sign_out", post(sign_out))
         .route("/me", get(me))
@@ -48,24 +48,20 @@ pub fn routes() -> Router<AppState> {
 )]
 pub async fn signin(
     State(state): State<AppState>,
-    mut jar: PrivateCookieJar,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     headers: HeaderMap,
     Json(request): Json<SignInRequest>,
-) -> Result<(PrivateCookieJar, Json<AccessTokenResponse>), AppError> {
+) -> Result<(StatusCode, Json<AccessTokenResponse>), AppError> {
     let user = state
         .service
-        .signin(&request.email, &request.password)
+        .signin(request.email.to_string(), request.password.to_string())
         .await?;
-    let config = crate::config::get_or_init();
 
     let user_agent = headers
         .get("user-agent")
         .and_then(|v| v.to_str().ok())
         .unwrap_or("unknown");
-
     let ip = addr.ip().to_string();
-
     let jti = state
         .service
         .create_session(user.id, user_agent.into(), ip)
@@ -74,21 +70,48 @@ pub async fn signin(
     let token = token::generate_token_pair(user.id, user.email.clone(), user.role, jti)
         .map_err(|_| AppError::Unauthorized("failed to generate token".into()))?;
 
-    let access_cookie = set_cookie(
-        String::from("m_session"),
-        token.access_token.clone(),
-        config.access_token_expiry,
-    );
-    let refresh_cookie = set_cookie(
-        String::from("m_refresh"),
-        token.refresh_token.clone(),
-        config.refresh_token_expiry,
-    );
+    Ok((StatusCode::OK, Json(token)))
+}
 
-    jar = jar.add(access_cookie);
-    jar = jar.add(refresh_cookie);
+#[utoipa::path(
+    post,
+    path = "/signin/{provider_name}",
+    request_body = SignInProviderRequest,
+    responses(
+        (status = 200, description = "signed in"),
+        (status = 401, description = "invalid credentials")
+    )
+)]
+pub async fn signin_provider(
+    State(state): State<AppState>,
+    Path(provider_name): Path<String>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Json(request): Json<SignInProviderRequest>,
+) -> Result<(StatusCode, Json<AccessTokenResponse>), AppError> {
+    let provider = provider_name.as_str();
+    match provider {
+        "google" | "github" => Ok(()),
+        _ => Err(AppError::Unauthorized("provider not supported".into())),
+    }?;
+    let user = state
+        .service
+        .signin_provider(provider.to_string(), request)
+        .await?;
+    let user_agent = headers
+        .get("user-agent")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("unknown");
+    let ip = addr.ip().to_string();
+    let jti = state
+        .service
+        .create_session(user.id, user_agent.into(), ip)
+        .await?;
 
-    Ok((jar, Json(token)))
+    let token = token::generate_token_pair(user.id, user.email.clone(), user.role, jti)
+        .map_err(|_| AppError::Unauthorized("failed to generate token".into()))?;
+
+    Ok((StatusCode::OK, Json(token)))
 }
 
 #[utoipa::path(
@@ -118,10 +141,8 @@ pub async fn register_user(
 
 pub async fn refresh(
     State(state): State<AppState>,
-    mut jar: PrivateCookieJar,
     Json(request): Json<RefreshRequest>,
-) -> Result<(PrivateCookieJar, Json<AccessTokenResponse>), AppError> {
-    let config = crate::config::get_or_init();
+) -> Result<(StatusCode, Json<AccessTokenResponse>), AppError> {
     let claims = token::validate_refresh_token(&request.refresh_token)
         .map_err(|_| AppError::BadRequest("invalid/expired refresh token".into()))?;
 
@@ -144,21 +165,7 @@ pub async fn refresh(
         token::generate_token_pair(user.id, user.email.clone(), user.role, claims.jti.clone())
             .map_err(|_| AppError::Unauthorized("failed to generate token".into()))?;
 
-    let access_cookie = set_cookie(
-        String::from("m_session"),
-        token.access_token.clone(),
-        config.access_token_expiry,
-    );
-    let refresh_cookie = set_cookie(
-        String::from("m_refresh"),
-        token.refresh_token.clone(),
-        config.refresh_token_expiry,
-    );
-
-    jar = jar.add(access_cookie);
-    jar = jar.add(refresh_cookie);
-
-    Ok((jar, Json(token)))
+    Ok((StatusCode::OK, Json(token)))
 }
 
 #[utoipa::path(
@@ -226,7 +233,7 @@ pub async fn me(
 )]
 pub async fn find_user_by_id(
     State(state): State<AppState>,
-    axum::extract::Path(id): axum::extract::Path<Uuid>,
+    Path(id): Path<Uuid>,
 ) -> Result<Json<UserResponse>, AppError> {
     let user = state.service.get_user_by_id(id).await?;
     Ok(Json(user.into()))
@@ -244,7 +251,7 @@ pub async fn find_user_by_id(
 )]
 pub async fn delete_me(
     State(state): State<AppState>,
-    axum::extract::Path(id): axum::extract::Path<Uuid>,
+    Path(id): Path<Uuid>,
 ) -> Result<StatusCode, AppError> {
     state.service.delete_user_by_id(id).await?;
 

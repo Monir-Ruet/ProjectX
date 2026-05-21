@@ -23,6 +23,7 @@ pub struct UserResponse {
     pub name: String,
     pub email: String,
     pub role: String,
+    pub image: Option<String>,
     pub created_at: Option<DateTime<Utc>>,
     pub updated_at: Option<DateTime<Utc>>,
 }
@@ -34,6 +35,7 @@ impl From<User> for UserResponse {
             name: user.name.to_string(),
             email: user.email.to_string(),
             role: user.role.to_string(),
+            image: user.image,
             created_at: user.created_at,
             updated_at: user.updated_at,
         }

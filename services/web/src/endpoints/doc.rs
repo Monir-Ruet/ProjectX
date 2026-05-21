@@ -12,5 +12,6 @@ use utoipa::OpenApi;
     crate::endpoints::user::me,
     crate::endpoints::user::update_me,
     crate::endpoints::user::is_authenticated,
+    crate::endpoints::user::signin_provider
 ))]
 pub struct ApiDoc;

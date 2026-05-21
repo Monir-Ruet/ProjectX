@@ -7,6 +7,14 @@ pub struct SignInRequest {
     pub password: String,
 }
 
+#[derive(Deserialize, ToSchema)]
+pub struct SignInProviderRequest {
+    pub email: String,
+    pub name: String,
+    pub account_id: String,
+    pub image: String,
+}
+
 #[derive(Serialize, ToSchema)]
 pub struct AccessTokenResponse {
     pub access_token: String,

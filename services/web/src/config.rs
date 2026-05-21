@@ -6,6 +6,7 @@ pub struct AppConfig {
     pub secret_key: String,
     pub access_token_expiry: i64,
     pub refresh_token_expiry: i64,
+    pub max_lockout_num: i32,
 }
 
 impl AppConfig {
@@ -15,6 +16,7 @@ impl AppConfig {
             secret_key: std::env::var("SECRET_KEY").expect("SECRET_KEY must be set"),
             access_token_expiry: 15 * 60,            // 15 minutes
             refresh_token_expiry: 30 * 24 * 60 * 60, // 30 days
+            max_lockout_num: 10,
         }
     }
 }

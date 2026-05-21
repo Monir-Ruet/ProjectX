@@ -1,7 +1,7 @@
+use domain::entities::users::user::User;
 use serde::Deserialize;
 use utoipa::ToSchema;
 use validator::Validate;
-use domain::entities::users::user::User;
 
 #[derive(Deserialize, ToSchema, Validate)]
 pub struct RegisterRequest {
@@ -19,7 +19,7 @@ pub struct RegisterRequest {
 
 impl From<RegisterRequest> for User {
     fn from(req: RegisterRequest) -> User {
-        User{
+        User {
             name: req.name.into(),
             email: req.email.into(),
             password: req.password.into(),

@@ -1,8 +1,8 @@
 use axum::{extract::FromRequestParts, http::request::Parts};
 
-use crate::{error::AppError};
-use crate::{state::AppState};
+use crate::error::AppError;
 use crate::extractor::auth::AuthorizedUser;
+use crate::state::AppState;
 
 pub trait Role {
     const ROLE: &'static str;
@@ -42,9 +42,7 @@ where
         let user = AuthorizedUser::from_request_parts(parts, state).await?;
 
         if user.role != R::ROLE {
-            return Err(AppError::Forbidden(
-                "Forbidden".into(),
-            ));
+            return Err(AppError::Forbidden("Forbidden".into()));
         }
 
         Ok(Self(user, std::marker::PhantomData))

@@ -1,10 +1,11 @@
-use axum::{RequestPartsExt, extract::FromRequestParts, http::request::Parts};
+use axum::{extract::FromRequestParts, http::request::Parts, RequestPartsExt};
 use axum_extra::{
+    headers::{authorization::Bearer, Authorization},
     TypedHeader,
-    headers::{Authorization, authorization::Bearer},
 };
 use uuid::Uuid;
 
+use crate::services::session::SessionService;
 use crate::{error::AppError, utils::jwt::AccessClaims};
 use crate::{state::AppState, utils::token};
 
@@ -22,7 +23,7 @@ impl From<AccessClaims> for AuthorizedUser {
             id: claims.sub,
             email: claims.email,
             role: claims.role,
-            jti: claims.jti
+            jti: claims.jti,
         }
     }
 }
@@ -56,7 +57,15 @@ where
 
         let claims = token::validate_access_token(bearer.token())
             .map_err(|_| AppError::Unauthorized("Access denied".into()))?;
+        let session = state
+            .service
+            .find_session_by_id(claims.jti)
+            .await
+            .map_err(|_| AppError::Unauthorized("Access denied".into()))?;
 
+        if session.is_expired() {
+            return Err(AppError::Unauthorized("Access denied".into()));
+        }
         Ok(AuthorizedUser::from(claims))
     }
 }
