@@ -1,9 +1,11 @@
 use crate::extractor::auth::AuthorizedUser;
 use crate::extractor::role::{Admin, AppUser, RequireRole};
+use crate::models::users::passkey::{ChallengeQuery, ChallengeRequest, PassKeyRequest, PasskeyQuery, PasskeyResponse};
 use crate::models::users::refresh::RefreshRequest;
 use crate::models::users::register::RegisterRequest;
-use crate::models::users::signin::{AccessTokenResponse, SignInProviderRequest, SignInRequest};
+use crate::models::users::signin::{AccessTokenResponse, PassKeySignInRequest, PassKeySignInResponse, PassKeyVerifyRequest, SignInProviderRequest, SignInRequest};
 use crate::models::users::user::{UserResponse, UserUpdateRequest};
+use crate::utils::token::{generate_passkey_token, validate_passkey_token};
 use crate::{
     endpoints::AppState,
     error::AppError,
@@ -11,21 +13,23 @@ use crate::{
     services::{session::SessionService, user::UserService},
     utils::token::{self},
 };
-use axum::extract::Path;
+use axum::extract::{Path, Query};
 use axum::routing::{delete, put};
 use axum::{
-    Json, Router,
-    extract::{ConnectInfo, State},
-    http::{HeaderMap, StatusCode},
+    extract::{ConnectInfo, State}, http::{HeaderMap, StatusCode},
     routing::{get, post},
+    Json,
+    Router,
 };
+use domain::entities::users::challenge::Challenge;
 use std::net::SocketAddr;
 use uuid::Uuid;
 
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/register/", post(register_user))
-        .route("/users/{id}", get(find_user_by_id))
+        .route("/users/id/{id}", get(find_user_by_id))
+        .route("/users/email/{email}", get(find_user_by_email))
         .route("/register", post(register_user))
         .route("/signin", post(signin))
         .route("/signin/{provider_name}", post(signin_provider))
@@ -35,6 +39,12 @@ pub fn routes() -> Router<AppState> {
         .route("/me", put(update_me))
         .route("/me", delete(delete_me))
         .route("/ping", get(is_authenticated))
+        .route("/challenge", get(find_challenge))
+        .route("/challenge", post(create_challenge))
+        .route("/passkey", post(add_passkey))
+        .route("/passkey", get(find_passkey))
+        .route("/passkey/signin", post(passkey_signin))
+        .route("/passkey/verify", post(verify_passkey))
 }
 
 #[utoipa::path(
@@ -126,7 +136,7 @@ pub async fn register_user(
     State(state): State<AppState>,
     Validated(request): Validated<RegisterRequest>,
 ) -> Result<StatusCode, AppError> {
-    state.service.create_user(request.into()).await?;
+    state.service.add_user(request.into()).await?;
     Ok(StatusCode::CREATED)
 }
 
@@ -222,7 +232,7 @@ pub async fn me(
 
 #[utoipa::path(
     get,
-    path = "/users/{id}",
+    path = "/users/id/{id}",
     params(
         ("id" = String, Path, description = "User ID")
     ),
@@ -236,6 +246,25 @@ pub async fn find_user_by_id(
     Path(id): Path<Uuid>,
 ) -> Result<Json<UserResponse>, AppError> {
     let user = state.service.get_user_by_id(id).await?;
+    Ok(Json(user.into()))
+}
+
+#[utoipa::path(
+    get,
+    path = "/users/email/{id}",
+    params(
+        ("email" = String, Path, description = "User email")
+    ),
+    responses(
+        (status = 200, body = UserResponse),
+        (status = 404, description = "User not found")
+    )
+)]
+pub async fn find_user_by_email(
+    State(state): State<AppState>,
+    Path(email): Path<String>,
+) -> Result<Json<UserResponse>, AppError> {
+    let user = state.service.get_user_by_email(email).await?;
     Ok(Json(user.into()))
 }
 
@@ -268,6 +297,128 @@ pub async fn delete_me(
 )]
 pub async fn is_authenticated(_: AuthorizedUser) -> Result<StatusCode, AppError> {
     Ok(StatusCode::OK)
+}
+
+#[utoipa::path(
+    get,
+    path = "/challenge",
+    params(
+        ("user_id" = String, Query)
+    ),
+    responses(
+        (status = 200, description = "challenge"),
+    )
+)]
+pub async fn find_challenge(
+    State(state): State<AppState>,
+    Query(query): Query<ChallengeQuery>) -> Result<(StatusCode, Json<Challenge>), AppError> {
+    let challenge = state.service.find_challenge(query.user_id).await?;
+    Ok((StatusCode::OK, Json(challenge)))
+}
+
+#[utoipa::path(
+    post,
+    path = "/challenge",
+    request_body = ChallengeRequest,
+    responses(
+        (status = 201, description = "created new challenge"),
+        (status = 401, description = "invalid challenge")
+    )
+)]
+pub async fn create_challenge(
+    State(state): State<AppState>,
+    Json(request): Json<ChallengeRequest>,
+) -> Result<StatusCode, AppError> {
+    state.service.webauthn_challenge(request).await?;
+    Ok(StatusCode::CREATED)
+}
+
+#[utoipa::path(
+    post,
+    path = "/passkey",
+    request_body = PassKeyRequest,
+    responses(
+        (status = 201, description = "created new challenge"),
+        (status = 401, description = "invalid challenge")
+    )
+)]
+pub async fn add_passkey(
+    State(state): State<AppState>,
+    Json(request): Json<PassKeyRequest>,
+) -> Result<StatusCode, AppError> {
+    state.service.add_passkey(request).await?;
+    Ok(StatusCode::CREATED)
+}
+
+#[utoipa::path(
+    get,
+    path = "/passkey",
+    params(
+        ("credential_id" = String, Query)
+    ),
+    responses(
+        (status = 200, body= PasskeyResponse),
+    )
+)]
+pub async fn find_passkey(
+    State(state): State<AppState>,
+    Query(query): Query<PasskeyQuery>,
+) -> Result<(StatusCode, Json<PasskeyResponse>), AppError> {
+    let passkey = state.service.find_passkey(query.credential_id).await?;
+    Ok((StatusCode::OK, Json(passkey.into())))
+}
+
+#[utoipa::path(
+    post,
+    path = "/passkey/signin",
+    request_body = PassKeySignInRequest,
+    responses(
+        (status = 200, body= PassKeySignInResponse),
+    )
+)]
+pub async fn passkey_signin(
+    State(state): State<AppState>,
+    Json(request): Json<PassKeySignInRequest>,
+) -> Result<(StatusCode, Json<PassKeySignInResponse>), AppError> {
+    let user = state.service.get_user_by_id(request.id).await?;
+    let token = generate_passkey_token(user.id)
+        .map_err(|_| AppError::Unauthorized("failed to generate token".into()))?;
+
+    Ok((StatusCode::OK, Json(PassKeySignInResponse {
+        passkey_token: token,
+    })))
+}
+
+#[utoipa::path(
+    post,
+    path = "/passkey/verify",
+    request_body = PassKeyVerifyRequest,
+    responses(
+        (status = 200, body= AccessTokenResponse),
+    )
+)]
+pub async fn verify_passkey(
+    State(state): State<AppState>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Json(request): Json<PassKeyVerifyRequest>,
+) -> Result<(StatusCode, Json<AccessTokenResponse>), AppError> {
+    let passkey_claims = validate_passkey_token(request.passkey_token.as_str())
+        .map_err(|_| AppError::Unauthorized("failed to validate passkey".into()))?;
+    let user = state.service.get_user_by_id(passkey_claims.id).await?;
+    let user_agent = headers
+        .get("user-agent")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("unknown");
+    let ip = addr.ip().to_string();
+    let jti = state
+        .service
+        .create_session(user.id, user_agent.into(), ip)
+        .await?;
+
+    let token = token::generate_token_pair(user.id, user.email.clone(), user.role, jti)
+        .map_err(|_| AppError::Unauthorized("failed to generate token".into()))?;
+    Ok((StatusCode::OK, Json(token)))
 }
 
 #[cfg(test)]

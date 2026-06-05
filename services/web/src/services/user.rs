@@ -1,3 +1,4 @@
+use crate::models::users::passkey::{ChallengeRequest, PassKeyRequest};
 use crate::models::users::signin::SignInProviderRequest;
 use crate::models::users::user::UserUpdateRequest;
 use crate::repositories::provider::ProviderRepository;
@@ -7,23 +8,27 @@ use crate::{
 };
 use async_trait::async_trait;
 use chrono::{Duration, Utc};
+use domain::entities::users::challenge::Challenge;
+use domain::entities::users::passkey::Passkey;
 use domain::entities::users::provider::Provider;
 use domain::entities::users::user::User;
 use sqlx::Error;
+use std::ops::Add;
 use uuid::Uuid;
 
 #[async_trait]
 pub trait UserService {
     async fn get_user_by_id(&self, id: Uuid) -> Result<User, AppError>;
-    async fn create_user(&self, user: User) -> Result<(), AppError>;
+    async fn get_user_by_email(&self, email: String) -> Result<User, AppError>;
+    async fn add_user(&self, user: User) -> Result<(), AppError>;
     async fn delete_user_by_id(&self, id: Uuid) -> Result<(), AppError>;
     async fn update_user(&self, id: Uuid, request: UserUpdateRequest) -> Result<(), AppError>;
     async fn signin(&self, email: String, password: String) -> Result<User, AppError>;
-    async fn signin_provider(
-        &self,
-        provider: String,
-        credentials: SignInProviderRequest,
-    ) -> Result<User, AppError>;
+    async fn signin_provider(&self, provider: String, credentials: SignInProviderRequest) -> Result<User, AppError>;
+    async fn webauthn_challenge(&self, challenge: ChallengeRequest) -> Result<(), AppError>;
+    async fn find_challenge(&self, user_id: Uuid) -> Result<Challenge, AppError>;
+    async fn add_passkey(&self, request: PassKeyRequest) -> Result<(), AppError>;
+    async fn find_passkey(&self, credential_id: String) -> Result<Passkey, AppError>;
 }
 
 #[async_trait]
@@ -37,7 +42,16 @@ impl UserService for Services {
         Ok(user)
     }
 
-    async fn create_user(&self, mut user: User) -> Result<(), AppError> {
+    async fn get_user_by_email(&self, email: String) -> Result<User, AppError> {
+        let user = self
+            .repo
+            .find_user_by_email(email)
+            .await
+            .map_err(|_| AppError::NotFound("user not found".into()))?;
+        Ok(user)
+    }
+
+    async fn add_user(&self, mut user: User) -> Result<(), AppError> {
         if let Some(password) = user.password {
             let hashed_password = tokio::task::spawn_blocking({
                 move || password::hash_password(&password)
@@ -48,10 +62,9 @@ impl UserService for Services {
 
             user.password = Some(hashed_password);
         }
-        match self.repo.create_user(user).await {
+        match self.repo.add_user(user).await {
             Ok(_) => Ok(()),
             Err(Error::Database(db_err)) if db_err.code().as_deref() == Some("23505") => {
-                tracing::warn!("Attempt to create user with existing email");
                 Err(AppError::Conflict("already exists".into()))
             }
             Err(e) => {
@@ -162,7 +175,7 @@ impl UserService for Services {
                     String::from("user"),
                 );
                 new_user.email_verified = true;
-                _ = self.create_user(new_user).await;
+                _ = self.add_user(new_user).await;
                 let user = self
                     .repo
                     .find_user_by_email(credentials.email.to_string())
@@ -184,5 +197,37 @@ impl UserService for Services {
             }
             _ => Err(AppError::Internal("provider not found".into())),
         }
+    }
+
+    async fn webauthn_challenge(&self, challenge: ChallengeRequest) -> Result<(), AppError> {
+        self.repo.add_update_webauthn_challenge(Challenge::new(challenge.user_id, challenge.challenge, Some(Utc::now().add(Duration::minutes(15))))).await.map_err(|e| {
+            tracing::error!("Failed to add challenge: {:?}", e);
+            AppError::Internal("failed to check webauthn challenge".into())
+        })
+    }
+
+    async fn find_challenge(&self, user_id: Uuid) -> Result<Challenge, AppError> {
+        let challenge = self.repo.find_challenge(user_id).await.map_err(|e| {
+            tracing::error!("Failed to find challenge: {:?}", e);
+            AppError::NotFound("Challenge not found".into())
+        })?;
+        if challenge.expires_at.unwrap() < Utc::now() {
+            return Err(AppError::NotFound("Challenge expired".into()));
+        }
+        Ok(challenge)
+    }
+
+    async fn add_passkey(&self, request: PassKeyRequest) -> Result<(), AppError> {
+        self.repo.add_passkey(request.into()).await.map_err(|e| {
+            tracing::error!("Failed to add passkey: {:?}", e);
+            AppError::BadRequest("failed to add passkey".into())
+        })
+    }
+
+    async fn find_passkey(&self, credential_id: String) -> Result<Passkey, AppError> {
+        self.repo.find_passkey(credential_id).await.map_err(|e| {
+            tracing::error!("Failed to find passkey: {:?}", e);
+            AppError::NotFound("Passkey not found".into())
+        })
     }
 }

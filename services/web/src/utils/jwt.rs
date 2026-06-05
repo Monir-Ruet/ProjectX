@@ -67,3 +67,15 @@ impl RefreshClaims {
         Utc::now().timestamp() > self.exp
     }
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PassKeyClaims {
+    pub id: Uuid,
+    pub exp: i64,
+}
+
+impl PassKeyClaims {
+    pub fn is_expired(&self) -> bool {
+        Utc::now().timestamp() > self.exp
+    }
+}

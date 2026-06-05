@@ -14,7 +14,7 @@ tonic-prost = { version = "0.14.5" }
 tonic-prost-build = { version = "0.14.5" }
 tracing = { version = "0.1.44" }
 tracing-subscriber = { version = "0.3.23" }
-sqlx = { version = "0.8.6", features = ["sqlite", "postgres", "runtime-tokio-native-tls", "uuid", "chrono"] }
+sqlx = { version = "0.9.0", features = ["sqlite", "postgres", "uuid", "chrono", "runtime-tokio"] }
 dotenv = { version = "0.15.0" }
 jsonwebtoken = { version = "10.3.0", features = ["aws_lc_rs"] }
 uuid = { version = "1.23.1", features = ["v4", "serde"] }
@@ -24,11 +24,12 @@ tower-http = { version = "0.6.8", features = ["trace", "compression-gzip", "comp
 async-trait = { version = "0.1.89" }
 serde_json = { version = "1.0.149" }
 utoipa-scalar = { version = "0.3.0", features = ["axum"] }
-utoipa = { version = "5.5.0", features = ["chrono"] }
+utoipa = { version = "5.5.0", features = ["chrono", "uuid"] }
 thiserror = { version = "2.0.18" }
 validator = { version = "0.20.0", features = ["derive"] }
 argon2 = { version = "0.5.3" }
 lazy_static = { version = "1.5.0" }
-sysinfo = { version = "0.38.4" }
+sysinfo = { version = "0.39.3" }
 axum-extra = { version = "0.12.6", features = ["cookie-private", "typed-header"] }
 cookie = { version = "0.18.1" }
+tokio-tungstenite = { version = "0.29.0" }

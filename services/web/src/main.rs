@@ -1,6 +1,6 @@
-use std::net::SocketAddr;
-
 use anyhow::Result;
+use axum::routing::get;
+use std::net::SocketAddr;
 use tower::ServiceBuilder;
 use tower_http::compression::CompressionLayer;
 use tower_http::cors::CorsLayer;
@@ -16,16 +16,19 @@ mod repositories;
 mod services;
 mod state;
 mod utils;
+pub mod socket;
 
 #[tokio::main]
 async fn main() -> Result<()> {
     dotenv::dotenv().ok();
     tracing_subscriber::fmt::init();
-    info!("Starting ProjectX Web Server on port 3000");
+    info!("Starting ProjectX Web Server on port 8080");
 
     let state = state::AppState::new().await?;
 
-    let app = endpoints::routes().await.with_state(state).layer(
+    let app = endpoints::routes()
+        .await
+        .route("/ws", get(socket::ws_handler)).with_state(state).layer(
         ServiceBuilder::new()
             .layer(TraceLayer::new_for_http())
             .layer(CorsLayer::new())
@@ -37,7 +40,7 @@ async fn main() -> Result<()> {
         listener,
         app.into_make_service_with_connect_info::<SocketAddr>(),
     )
-    .await?;
+        .await?;
 
     Ok(())
 }

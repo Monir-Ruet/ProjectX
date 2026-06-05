@@ -24,7 +24,7 @@ impl Session {
     }
 
     pub fn is_expired(&self) -> bool {
-        assert!(self.id != Uuid::nil(), "Session ID should not be nil");
+        assert_ne!(self.id, Uuid::nil(), "Session ID should not be nil");
         Utc::now() > self.expires_at
     }
 }
