@@ -45,6 +45,8 @@ pub fn routes() -> Router<AppState> {
         .route("/passkey", get(find_passkey))
         .route("/passkey/signin", post(passkey_signin))
         .route("/passkey/verify", post(verify_passkey))
+        .route("/webauthn/signin", post(webauthn_signin))
+        .route("/webauthn/verify", post(webauthn_verify))
 }
 
 #[utoipa::path(
@@ -380,13 +382,8 @@ pub async fn passkey_signin(
     State(state): State<AppState>,
     Json(request): Json<PassKeySignInRequest>,
 ) -> Result<(StatusCode, Json<PassKeySignInResponse>), AppError> {
-    let user = state.service.get_user_by_id(request.id).await?;
-    let token = generate_passkey_token(user.id)
-        .map_err(|_| AppError::Unauthorized("failed to generate token".into()))?;
-
-    Ok((StatusCode::OK, Json(PassKeySignInResponse {
-        passkey_token: token,
-    })))
+    let response = passkey_signin_response(&state, request).await?;
+    Ok((StatusCode::OK, Json(response)))
 }
 
 #[utoipa::path(
@@ -403,6 +400,63 @@ pub async fn verify_passkey(
     headers: HeaderMap,
     Json(request): Json<PassKeyVerifyRequest>,
 ) -> Result<(StatusCode, Json<AccessTokenResponse>), AppError> {
+    let token = verify_passkey_response(&state, addr, &headers, request).await?;
+    Ok((StatusCode::OK, Json(token)))
+}
+
+#[utoipa::path(
+    post,
+    path = "/webauthn/signin",
+    request_body = PassKeySignInRequest,
+    responses(
+        (status = 200, body= PassKeySignInResponse),
+    )
+)]
+pub async fn webauthn_signin(
+    State(state): State<AppState>,
+    Json(request): Json<PassKeySignInRequest>,
+) -> Result<(StatusCode, Json<PassKeySignInResponse>), AppError> {
+    let response = passkey_signin_response(&state, request).await?;
+    Ok((StatusCode::OK, Json(response)))
+}
+
+#[utoipa::path(
+    post,
+    path = "/webauthn/verify",
+    request_body = PassKeyVerifyRequest,
+    responses(
+        (status = 200, body= AccessTokenResponse),
+    )
+)]
+pub async fn webauthn_verify(
+    State(state): State<AppState>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Json(request): Json<PassKeyVerifyRequest>,
+) -> Result<(StatusCode, Json<AccessTokenResponse>), AppError> {
+    let token = verify_passkey_response(&state, addr, &headers, request).await?;
+    Ok((StatusCode::OK, Json(token)))
+}
+
+async fn passkey_signin_response(
+    state: &AppState,
+    request: PassKeySignInRequest,
+) -> Result<PassKeySignInResponse, AppError> {
+    let user = state.service.get_user_by_id(request.id).await?;
+    let token = generate_passkey_token(user.id)
+        .map_err(|_| AppError::Unauthorized("failed to generate token".into()))?;
+
+    Ok(PassKeySignInResponse {
+        passkey_token: token,
+    })
+}
+
+async fn verify_passkey_response(
+    state: &AppState,
+    addr: SocketAddr,
+    headers: &HeaderMap,
+    request: PassKeyVerifyRequest,
+) -> Result<AccessTokenResponse, AppError> {
     let passkey_claims = validate_passkey_token(request.passkey_token.as_str())
         .map_err(|_| AppError::Unauthorized("failed to validate passkey".into()))?;
     let user = state.service.get_user_by_id(passkey_claims.id).await?;
@@ -416,9 +470,8 @@ pub async fn verify_passkey(
         .create_session(user.id, user_agent.into(), ip)
         .await?;
 
-    let token = token::generate_token_pair(user.id, user.email.clone(), user.role, jti)
-        .map_err(|_| AppError::Unauthorized("failed to generate token".into()))?;
-    Ok((StatusCode::OK, Json(token)))
+    token::generate_token_pair(user.id, user.email.clone(), user.role, jti)
+        .map_err(|_| AppError::Unauthorized("failed to generate token".into()))
 }
 
 #[cfg(test)]

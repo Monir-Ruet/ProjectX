@@ -20,6 +20,8 @@ use utoipa::OpenApi;
     crate::endpoints::user::find_passkey,
     crate::endpoints::user::passkey_signin,
     crate::endpoints::user::verify_passkey,
+    crate::endpoints::user::webauthn_signin,
+    crate::endpoints::user::webauthn_verify,
 ))]
 
 pub struct ApiDoc;
