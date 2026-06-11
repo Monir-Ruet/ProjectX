@@ -7,7 +7,8 @@ use crate::models::users::refresh::RefreshRequest;
 use crate::models::users::register::RegisterRequest;
 use crate::models::users::signin::{
     AccessTokenResponse, PassKeySignInRequest, PassKeySignInResponse, PassKeyVerifyRequest,
-    SignInProviderRequest, SignInRequest,
+    SignInProviderRequest, SignInRequest, WebAuthnSignInRequest, WebAuthnSignInResponse,
+    WebAuthnVerifyRequest,
 };
 use crate::models::users::user::{UserResponse, UserUpdateRequest};
 use crate::utils::token::{generate_passkey_token, validate_passkey_token};
@@ -413,34 +414,34 @@ pub async fn verify_passkey(
 #[utoipa::path(
     post,
     path = "/webauthn/signin",
-    request_body = PassKeySignInRequest,
+    request_body = WebAuthnSignInRequest,
     responses(
-        (status = 200, body= PassKeySignInResponse),
+        (status = 200, body = WebAuthnSignInResponse),
     )
 )]
 pub async fn webauthn_signin(
     State(state): State<AppState>,
-    Json(request): Json<PassKeySignInRequest>,
-) -> Result<(StatusCode, Json<PassKeySignInResponse>), AppError> {
-    let response = passkey_signin_response(&state, request).await?;
-    Ok((StatusCode::OK, Json(response)))
+    Json(request): Json<WebAuthnSignInRequest>,
+) -> Result<(StatusCode, Json<WebAuthnSignInResponse>), AppError> {
+    let response = passkey_signin_response(&state, request.into()).await?;
+    Ok((StatusCode::OK, Json(response.into())))
 }
 
 #[utoipa::path(
     post,
     path = "/webauthn/verify",
-    request_body = PassKeyVerifyRequest,
+    request_body = WebAuthnVerifyRequest,
     responses(
-        (status = 200, body= AccessTokenResponse),
+        (status = 200, body = AccessTokenResponse),
     )
 )]
 pub async fn webauthn_verify(
     State(state): State<AppState>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     headers: HeaderMap,
-    Json(request): Json<PassKeyVerifyRequest>,
+    Json(request): Json<WebAuthnVerifyRequest>,
 ) -> Result<(StatusCode, Json<AccessTokenResponse>), AppError> {
-    let token = verify_passkey_response(&state, addr, &headers, request).await?;
+    let token = verify_passkey_response(&state, addr, &headers, request.into()).await?;
     Ok((StatusCode::OK, Json(token)))
 }
 
