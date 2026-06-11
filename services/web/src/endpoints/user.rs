@@ -1,9 +1,14 @@
 use crate::extractor::auth::AuthorizedUser;
 use crate::extractor::role::{Admin, AppUser, RequireRole};
-use crate::models::users::passkey::{ChallengeQuery, ChallengeRequest, PassKeyRequest, PasskeyQuery, PasskeyResponse};
+use crate::models::users::passkey::{
+    ChallengeQuery, ChallengeRequest, PassKeyRequest, PasskeyQuery, PasskeyResponse,
+};
 use crate::models::users::refresh::RefreshRequest;
 use crate::models::users::register::RegisterRequest;
-use crate::models::users::signin::{AccessTokenResponse, PassKeySignInRequest, PassKeySignInResponse, PassKeyVerifyRequest, SignInProviderRequest, SignInRequest};
+use crate::models::users::signin::{
+    AccessTokenResponse, PassKeySignInRequest, PassKeySignInResponse, PassKeyVerifyRequest,
+    SignInProviderRequest, SignInRequest,
+};
 use crate::models::users::user::{UserResponse, UserUpdateRequest};
 use crate::utils::token::{generate_passkey_token, validate_passkey_token};
 use crate::{
@@ -16,10 +21,10 @@ use crate::{
 use axum::extract::{Path, Query};
 use axum::routing::{delete, put};
 use axum::{
-    extract::{ConnectInfo, State}, http::{HeaderMap, StatusCode},
+    Json, Router,
+    extract::{ConnectInfo, State},
+    http::{HeaderMap, StatusCode},
     routing::{get, post},
-    Json,
-    Router,
 };
 use domain::entities::users::challenge::Challenge;
 use std::net::SocketAddr;
@@ -313,7 +318,8 @@ pub async fn is_authenticated(_: AuthorizedUser) -> Result<StatusCode, AppError>
 )]
 pub async fn find_challenge(
     State(state): State<AppState>,
-    Query(query): Query<ChallengeQuery>) -> Result<(StatusCode, Json<Challenge>), AppError> {
+    Query(query): Query<ChallengeQuery>,
+) -> Result<(StatusCode, Json<Challenge>), AppError> {
     let challenge = state.service.find_challenge(query.user_id).await?;
     Ok((StatusCode::OK, Json(challenge)))
 }
