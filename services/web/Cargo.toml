@@ -31,5 +31,9 @@ argon2 = { workspace = true }
 axum-extra = { workspace = true }
 cookie = { workspace = true }
 tokio-tungstenite = { workspace = true }
+webauthn-rs = { version = "0.5.5", features = ["danger-allow-state-serialisation"] }
+tower-sessions = "0.15.0"
+redis = { version = "1.2.2", features = ["tokio-comp", "aio"] }
+base64 = "0.22.1"
 
 [build-dependencies]

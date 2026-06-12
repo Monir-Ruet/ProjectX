@@ -1,4 +1,3 @@
-use crate::models::users::passkey::{ChallengeRequest, PassKeyRequest};
 use crate::models::users::signin::SignInProviderRequest;
 use crate::models::users::user::UserUpdateRequest;
 use crate::repositories::provider::ProviderRepository;
@@ -8,12 +7,10 @@ use crate::{
 };
 use async_trait::async_trait;
 use chrono::{Duration, Utc};
-use domain::entities::users::challenge::Challenge;
 use domain::entities::users::passkey::Passkey;
 use domain::entities::users::provider::Provider;
 use domain::entities::users::user::User;
 use sqlx::Error;
-use std::ops::Add;
 use uuid::Uuid;
 
 #[async_trait]
@@ -24,11 +21,11 @@ pub trait UserService {
     async fn delete_user_by_id(&self, id: Uuid) -> Result<(), AppError>;
     async fn update_user(&self, id: Uuid, request: UserUpdateRequest) -> Result<(), AppError>;
     async fn signin(&self, email: String, password: String) -> Result<User, AppError>;
-    async fn signin_provider(&self, provider: String, credentials: SignInProviderRequest) -> Result<User, AppError>;
-    async fn webauthn_challenge(&self, challenge: ChallengeRequest) -> Result<(), AppError>;
-    async fn find_challenge(&self, user_id: Uuid) -> Result<Challenge, AppError>;
-    async fn add_passkey(&self, request: PassKeyRequest) -> Result<(), AppError>;
-    async fn find_passkey(&self, credential_id: String) -> Result<Passkey, AppError>;
+    async fn signin_provider(&self, provider_name: String, credentials: SignInProviderRequest) -> Result<User, AppError>;
+    async fn add_passkey(&self, request: Passkey) -> Result<(), AppError>;
+    async fn find_all_passkeys(&self, email: String) -> Result<Vec<Passkey>, AppError>;
+    async fn find_passkey(&self, cred_id: Vec<u8>) -> Result<Passkey, AppError>;
+    async fn update_passkey(&self, passkey: Passkey) -> Result<(), AppError>;
 }
 
 #[async_trait]
@@ -199,35 +196,31 @@ impl UserService for Services {
         }
     }
 
-    async fn webauthn_challenge(&self, challenge: ChallengeRequest) -> Result<(), AppError> {
-        self.repo.add_update_webauthn_challenge(Challenge::new(challenge.user_id, challenge.challenge, Some(Utc::now().add(Duration::minutes(15))))).await.map_err(|e| {
-            tracing::error!("Failed to add challenge: {:?}", e);
-            AppError::Internal("failed to check webauthn challenge".into())
-        })
-    }
-
-    async fn find_challenge(&self, user_id: Uuid) -> Result<Challenge, AppError> {
-        let challenge = self.repo.find_challenge(user_id).await.map_err(|e| {
-            tracing::error!("Failed to find challenge: {:?}", e);
-            AppError::NotFound("Challenge not found".into())
-        })?;
-        if challenge.expires_at.unwrap() < Utc::now() {
-            return Err(AppError::NotFound("Challenge expired".into()));
-        }
-        Ok(challenge)
-    }
-
-    async fn add_passkey(&self, request: PassKeyRequest) -> Result<(), AppError> {
-        self.repo.add_passkey(request.into()).await.map_err(|e| {
+    async fn add_passkey(&self, request: Passkey) -> Result<(), AppError> {
+        self.repo.add_passkey(request).await.map_err(|e| {
             tracing::error!("Failed to add passkey: {:?}", e);
             AppError::BadRequest("failed to add passkey".into())
         })
     }
 
-    async fn find_passkey(&self, credential_id: String) -> Result<Passkey, AppError> {
-        self.repo.find_passkey(credential_id).await.map_err(|e| {
+    async fn find_all_passkeys(&self, email: String) -> Result<Vec<Passkey>, AppError> {
+        self.repo.find_all_passkeys(email).await.map_err(|e| {
             tracing::error!("Failed to find passkey: {:?}", e);
             AppError::NotFound("Passkey not found".into())
+        })
+    }
+
+    async fn find_passkey(&self, cred_id: Vec<u8>) -> Result<Passkey, AppError> {
+        self.repo.find_passkey(cred_id).await.map_err(|e| {
+            tracing::error!("Failed to find passkey: {:?}", e);
+            AppError::NotFound("Passkey not found".into())
+        })
+    }
+
+    async fn update_passkey(&self, passkey: Passkey) -> Result<(), AppError> {
+        self.repo.update_passkey(passkey).await.map_err(|e| {
+            tracing::error!("Failed to update passkey: {:?}", e);
+            AppError::Internal("failed to update passkey".into())
         })
     }
 }

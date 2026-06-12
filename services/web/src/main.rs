@@ -28,7 +28,8 @@ async fn main() -> Result<()> {
 
     let app = endpoints::routes()
         .await
-        .route("/ws", get(socket::ws_handler)).with_state(state).layer(
+        .route("/ws", get(socket::ws_handler))
+        .with_state(state).layer(
         ServiceBuilder::new()
             .layer(TraceLayer::new_for_http())
             .layer(CorsLayer::new())

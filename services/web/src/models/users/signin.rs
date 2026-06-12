@@ -32,7 +32,7 @@ pub struct SignInProviderRequest {
     pub image: String,
 }
 
-#[derive(Serialize, ToSchema)]
+#[derive(Serialize, ToSchema, Debug)]
 pub struct AccessTokenResponse {
     pub access_token: String,
     pub refresh_token: String,

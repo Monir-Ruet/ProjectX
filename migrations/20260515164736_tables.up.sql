@@ -79,27 +79,11 @@ CREATE TABLE role_claims
 
 CREATE TABLE passkeys
 (
-    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    credential_id TEXT UNIQUE NOT NULL,
-    public_key    TEXT,
-    counter       BIGINT,
-    device_type   TEXT,
-    backed_up     BOOLEAN,
-    transports    TEXT,
-    user_id       UUID        NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-    created_at    TIMESTAMPTZ      DEFAULT NOW(),
-    UNIQUE (user_id, credential_id)
+    id          UUID PRIMARY KEY     DEFAULT gen_random_uuid(),
+    user_id     UUID        NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    cred_id     BYTEA       NOT NULL UNIQUE,
+    device_type TEXT,
+    passkey     JSONB       NOT NULL,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-
-CREATE INDEX idx_id_passkeys ON passkeys (id);
-
-CREATE TABLE challenges
-(
-    challenge  TEXT,
-    user_id    UUID NOT NULL UNIQUE REFERENCES users (id) ON DELETE CASCADE,
-    purpose    TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    expires_at TIMESTAMPTZ
-);
-CREATE INDEX idx_user_id_challenge ON challenges (user_id);
-CREATE INDEX idx_expires_at_challenge ON challenges (expires_at);
+CREATE INDEX idx_passkeys_cred_id ON passkeys (cred_id);

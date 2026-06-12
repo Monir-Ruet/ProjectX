@@ -1,5 +1,7 @@
 use chrono::{Duration, Utc};
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, TokenData, Validation};
+use serde::de::DeserializeOwned;
+use serde::Serialize;
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -118,5 +120,27 @@ pub fn validate_passkey_token(token: &str) -> Result<PassKeyClaims, TokenError> 
     if token_data.claims.is_expired() {
         return Err(TokenError::Expired);
     }
+    Ok(token_data.claims)
+}
+
+pub fn create_jwt<T: Serialize>(claims: T) -> Result<String, TokenError> {
+    let config = config::get_or_init();
+    let encoding_key = EncodingKey::from_secret(config.secret_key.as_bytes());
+    encode(&Header::default(), &claims, &encoding_key).map_err(TokenError::EncodingFailed)
+}
+
+pub fn verify_jwt<T: DeserializeOwned>(
+    token: &str,
+) -> Result<T, TokenError> {
+    let mut validation = Validation::default();
+    validation.validate_exp = true;
+
+    let config = config::get_or_init();
+    let decoding_key = DecodingKey::from_secret(config.secret_key.as_bytes());
+
+    let token_data: TokenData<T> =
+        decode::<T>(token, &decoding_key, &validation)
+            .map_err(|_| TokenError::ValidationFailed)?;
+
     Ok(token_data.claims)
 }
