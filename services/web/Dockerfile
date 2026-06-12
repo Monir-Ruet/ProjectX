@@ -15,7 +15,7 @@ COPY shared ./shared
 
 RUN cargo build -p web --release
 
-FROM debian:bookworm-slim
+FROM rust:1.96-slim
 
 WORKDIR /app
 
