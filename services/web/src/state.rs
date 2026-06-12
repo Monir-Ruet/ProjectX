@@ -21,6 +21,8 @@ impl AppState {
     pub async fn new() -> Result<Self, anyhow::Error> {
         let database_url = std::env::var("DATABASE_URL")?;
         let redis_url = std::env::var("REDIS_URL")?;
+        let rp_id = std::env::var("RP_ID")?;
+        let rp_origin = std::env::var("RP_ORIGIN")?;
         let options = sqlx::postgres::PgConnectOptions::from_str(&database_url)?;
         let pool = sqlx::PgPool::connect_lazy_with(options);
 
@@ -28,9 +30,8 @@ impl AppState {
         let service = Services::new(repo.clone());
         let (tx, _rx) = broadcast::channel(100);
 
-        let rp_id = "localhost";
-        let rp_origin = Url::parse("http://localhost:3000").expect("Invalid URL");
-        let builder = WebauthnBuilder::new(rp_id, &rp_origin).expect("Invalid configuration");
+        let rp_origin = Url::parse(&rp_origin).expect("Invalid URL");
+        let builder = WebauthnBuilder::new(&rp_id, &rp_origin).expect("Invalid configuration");
         let builder = builder.rp_name("Axum Webauthn-rs");
         let webauthn = Arc::new(builder.build().expect("Invalid configuration"));
 
