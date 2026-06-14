@@ -1,28 +1,11 @@
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
-use uuid::Uuid;
 
 #[derive(Deserialize, ToSchema)]
 pub struct SignInRequest {
     pub email: String,
     pub password: String,
 }
-
-#[derive(Deserialize, ToSchema)]
-pub struct PassKeySignInRequest {
-    pub id: Uuid,
-}
-
-#[derive(Serialize, ToSchema)]
-pub struct PassKeySignInResponse {
-    pub passkey_token: String,
-}
-
-#[derive(Deserialize, ToSchema)]
-pub struct PassKeyVerifyRequest {
-    pub passkey_token: String,
-}
-
 
 #[derive(Deserialize, ToSchema)]
 pub struct SignInProviderRequest {

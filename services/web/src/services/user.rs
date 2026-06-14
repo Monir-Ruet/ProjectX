@@ -7,7 +7,6 @@ use crate::{
 };
 use async_trait::async_trait;
 use chrono::{Duration, Utc};
-use domain::entities::users::passkey::Passkey;
 use domain::entities::users::provider::Provider;
 use domain::entities::users::user::User;
 use sqlx::Error;
@@ -22,10 +21,6 @@ pub trait UserService {
     async fn update_user(&self, id: Uuid, request: UserUpdateRequest) -> Result<(), AppError>;
     async fn signin(&self, email: String, password: String) -> Result<User, AppError>;
     async fn signin_provider(&self, provider_name: String, credentials: SignInProviderRequest) -> Result<User, AppError>;
-    async fn add_passkey(&self, request: Passkey) -> Result<(), AppError>;
-    async fn find_all_passkeys(&self, email: String) -> Result<Vec<Passkey>, AppError>;
-    async fn find_passkey(&self, cred_id: Vec<u8>) -> Result<Passkey, AppError>;
-    async fn update_passkey(&self, passkey: Passkey) -> Result<(), AppError>;
 }
 
 #[async_trait]
@@ -150,10 +145,7 @@ impl UserService for Services {
         provider_name: String,
         credentials: SignInProviderRequest,
     ) -> Result<User, AppError> {
-        match self
-            .repo
-            .find_provider_by_account_id(credentials.account_id.clone())
-            .await
+        match self.repo.find_provider_by_account_id(credentials.account_id.clone()).await
         {
             Ok(provider) => {
                 let user = self
@@ -194,33 +186,5 @@ impl UserService for Services {
             }
             _ => Err(AppError::Internal("provider not found".into())),
         }
-    }
-
-    async fn add_passkey(&self, request: Passkey) -> Result<(), AppError> {
-        self.repo.add_passkey(request).await.map_err(|e| {
-            tracing::error!("Failed to add passkey: {:?}", e);
-            AppError::BadRequest("failed to add passkey".into())
-        })
-    }
-
-    async fn find_all_passkeys(&self, email: String) -> Result<Vec<Passkey>, AppError> {
-        self.repo.find_all_passkeys(email).await.map_err(|e| {
-            tracing::error!("Failed to find passkey: {:?}", e);
-            AppError::NotFound("Passkey not found".into())
-        })
-    }
-
-    async fn find_passkey(&self, cred_id: Vec<u8>) -> Result<Passkey, AppError> {
-        self.repo.find_passkey(cred_id).await.map_err(|e| {
-            tracing::error!("Failed to find passkey: {:?}", e);
-            AppError::NotFound("Passkey not found".into())
-        })
-    }
-
-    async fn update_passkey(&self, passkey: Passkey) -> Result<(), AppError> {
-        self.repo.update_passkey(passkey).await.map_err(|e| {
-            tracing::error!("Failed to update passkey: {:?}", e);
-            AppError::Internal("failed to update passkey".into())
-        })
     }
 }

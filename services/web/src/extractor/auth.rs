@@ -10,6 +10,7 @@ use crate::{error::AppError, utils::jwt::AccessClaims};
 use crate::{state::AppState, utils::token};
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct AuthorizedUser {
     pub id: Uuid,
     pub email: String,
@@ -70,6 +71,7 @@ where
     }
 }
 
+#[allow(dead_code)]
 pub struct OptionalAuthUser(pub Option<AuthorizedUser>);
 
 impl FromRequestParts<AppState> for OptionalAuthUser

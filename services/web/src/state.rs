@@ -1,7 +1,7 @@
 use crate::{repositories::Repository, services::Services};
 use axum::extract::FromRef;
 use cookie::Key;
-use redis::aio::MultiplexedConnection;
+use deadpool_redis::{Config, Pool, Runtime};
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::broadcast;
@@ -14,7 +14,7 @@ pub struct AppState {
     pub key: Key,
     pub(crate) tx: broadcast::Sender<String>,
     pub web_auth: Arc<Webauthn>,
-    pub redis: MultiplexedConnection,
+    pub redis: Pool,
 }
 
 impl AppState {
@@ -35,15 +35,15 @@ impl AppState {
         let builder = builder.rp_name("Axum Webauthn-rs");
         let webauthn = Arc::new(builder.build().expect("Invalid configuration"));
 
-        let client = redis::Client::open(redis_url)?;
-        let con = client.get_multiplexed_async_connection().await?;
-
+        let cfg = Config::from_url(redis_url.as_str());
+        let pool = cfg.create_pool(Some(Runtime::Tokio1))?;
+        
         Ok(Self {
             service,
             key: Key::generate(),
             tx,
             web_auth: webauthn,
-            redis: con,
+            redis: pool,
         })
     }
 }

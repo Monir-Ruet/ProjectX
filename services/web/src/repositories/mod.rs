@@ -3,6 +3,7 @@ use sqlx::PgPool;
 pub mod provider;
 pub mod session;
 pub mod user;
+pub mod passkey;
 
 #[derive(Clone)]
 #[allow(dead_code)]

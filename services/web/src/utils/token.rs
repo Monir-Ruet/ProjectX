@@ -1,4 +1,4 @@
-use chrono::{Duration, Utc};
+use chrono::Duration;
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, TokenData, Validation};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -6,7 +6,6 @@ use thiserror::Error;
 use uuid::Uuid;
 
 use crate::models::users::signin::AccessTokenResponse;
-use crate::utils::jwt::PassKeyClaims;
 use crate::{
     config::{self},
     utils::jwt::{AccessClaims, RefreshClaims},
@@ -27,111 +26,58 @@ pub enum TokenError {
     InvalidType,
 }
 
-pub fn generate_access_token(
-    user_id: Uuid,
-    email: String,
-    role: String,
-    jti: Uuid,
-) -> Result<String, TokenError> {
-    let config = config::get_or_init();
-    let encoding_key = EncodingKey::from_secret(config.secret_key.as_bytes());
+pub fn generate_access_token(user_id: Uuid, email: String, role: String, jti: Uuid) -> Result<String, TokenError> {
     let claims = AccessClaims::new(user_id, email, role, Duration::minutes(15), jti);
-
-    encode(&Header::default(), &claims, &encoding_key).map_err(TokenError::EncodingFailed)
+    encode_jsonwebtoken(claims)
 }
 
 pub fn generate_refresh_token(user_id: Uuid, jti: Uuid) -> Result<String, TokenError> {
     let config = config::get_or_init();
-    let encoding_key = EncodingKey::from_secret(config.secret_key.as_bytes());
-    let claims = RefreshClaims::new(user_id, Duration::days(30), jti);
-
-    encode(&Header::default(), &claims, &encoding_key).map_err(TokenError::EncodingFailed)
+    let claims = RefreshClaims::new(user_id, Duration::seconds(config.refresh_token_expiry), jti);
+    encode_jsonwebtoken(claims)
 }
 
-pub fn generate_token_pair(
-    user_id: Uuid,
-    email: String,
-    role: String,
-    jti: Uuid,
-) -> Result<AccessTokenResponse, TokenError> {
+pub fn generate_token_pair(user_id: Uuid, email: String, role: String, jti: Uuid) -> Result<AccessTokenResponse, TokenError> {
+    let config = config::get_or_init();
     Ok(AccessTokenResponse {
         access_token: generate_access_token(user_id, email, role, jti)?,
         refresh_token: generate_refresh_token(user_id, jti.clone())?,
         token_type: "Bearer".to_string(),
-        expires_in: Duration::minutes(15).num_seconds() as u64,
+        expires_in: Duration::seconds(config.access_token_expiry).num_seconds() as u64,
     })
 }
 
 pub fn validate_access_token(token: &str) -> Result<AccessClaims, TokenError> {
-    let mut validation = Validation::default();
-    validation.validate_exp = true;
+    let token_data: AccessClaims = decode_jsonwebtoken(token)?;
 
-    let config = config::get_or_init();
-    let decoding_key = DecodingKey::from_secret(config.secret_key.as_bytes());
-    let token_data: TokenData<AccessClaims> =
-        decode(token, &decoding_key, &validation).map_err(|_| TokenError::ValidationFailed)?;
-
-    if token_data.claims.typ != "access_token" {
+    if token_data.typ != "access_token" {
         return Err(TokenError::InvalidType);
-    } else if token_data.claims.is_expired() {
+    } else if token_data.is_expired() {
         return Err(TokenError::Expired);
     }
 
-    Ok(token_data.claims)
+    Ok(token_data)
 }
 
 pub fn validate_refresh_token(token: &str) -> Result<RefreshClaims, TokenError> {
-    let mut validation = Validation::default();
-    validation.validate_exp = true;
+    let token_data: RefreshClaims = decode_jsonwebtoken(token)?;
 
-    let config = config::get_or_init();
-    let decoding_key = DecodingKey::from_secret(config.secret_key.as_bytes());
-    let token_data: TokenData<RefreshClaims> =
-        decode(token, &decoding_key, &validation).map_err(|_| TokenError::ValidationFailed)?;
-
-    if token_data.claims.typ != "refresh_token" {
+    if token_data.typ != "refresh_token" {
         return Err(TokenError::InvalidType);
-    } else if token_data.claims.is_expired() {
+    } else if token_data.is_expired() {
         return Err(TokenError::Expired);
     }
 
-    Ok(token_data.claims)
+    Ok(token_data)
 }
 
-pub fn generate_passkey_token(id: Uuid) -> Result<String, TokenError> {
-    let config = config::get_or_init();
-    let encoding_key = EncodingKey::from_secret(config.secret_key.as_bytes());
-    let claims = PassKeyClaims {
-        id,
-        exp: (Utc::now() + Duration::seconds(30)).timestamp(),
-    };
-
-    encode(&Header::default(), &claims, &encoding_key).map_err(TokenError::EncodingFailed)
-}
-
-pub fn validate_passkey_token(token: &str) -> Result<PassKeyClaims, TokenError> {
-    let mut validation = Validation::default();
-    validation.validate_exp = true;
-
-    let config = config::get_or_init();
-    let decoding_key = DecodingKey::from_secret(config.secret_key.as_bytes());
-    let token_data: TokenData<PassKeyClaims> =
-        decode(token, &decoding_key, &validation).map_err(|_| TokenError::ValidationFailed)?;
-    if token_data.claims.is_expired() {
-        return Err(TokenError::Expired);
-    }
-    Ok(token_data.claims)
-}
-
-pub fn create_jwt<T: Serialize>(claims: T) -> Result<String, TokenError> {
+pub fn encode_jsonwebtoken<T: Serialize>(claims: T) -> Result<String, TokenError> {
     let config = config::get_or_init();
     let encoding_key = EncodingKey::from_secret(config.secret_key.as_bytes());
     encode(&Header::default(), &claims, &encoding_key).map_err(TokenError::EncodingFailed)
 }
 
-pub fn verify_jwt<T: DeserializeOwned>(
-    token: &str,
-) -> Result<T, TokenError> {
+pub fn decode_jsonwebtoken<T: DeserializeOwned>(token: &str) -> Result<T, TokenError> {
     let mut validation = Validation::default();
     validation.validate_exp = true;
 

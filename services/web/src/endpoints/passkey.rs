@@ -4,6 +4,7 @@ use crate::error::AppError::Unauthorized;
 use crate::extractor::auth::AuthorizedUser;
 use crate::models::users::passkey::{AuthenticationStartResponse, AuthenticationState, RegisterFinishRequest, RegisterStartResponse};
 use crate::models::users::signin::AccessTokenResponse;
+use crate::services::passkey::PasskeyService;
 use crate::services::session::SessionService;
 use crate::services::user::UserService;
 use crate::utils::cookie::set_cookie;
@@ -44,7 +45,7 @@ pub fn routes() -> Router<AppState> {
     )
 )]
 pub async fn start_register(
-    State(mut state): State<AppState>,
+    State(state): State<AppState>,
     auth_user: AuthorizedUser,
 ) -> Result<Json<RegisterStartResponse>, AppError> {
     let user = state.service.get_user_by_id(auth_user.id).await?;
@@ -68,10 +69,12 @@ pub async fn start_register(
     let state_id = format!("{0}:{1}", Uuid::new_v4().to_string(), user.id.to_string());
     let key = format!("webauthn:reg:{state_id}");
 
+    let mut redis = state.redis.get().await.map_err(|_| AppError::Internal("failed to get redis connection".into()))?;
+
     let _: () = redis::pipe()
         .set(&key, serialized)
-        .expire(&key, 120)
-        .query_async(&mut state.redis)
+        .expire(&key, 30)
+        .query_async(&mut redis)
         .await
         .map_err(|_| AppError::Internal("failed to set registration state".into()))?;
 
@@ -90,13 +93,13 @@ pub async fn start_register(
     )
 )]
 pub async fn finish_register(
-    State(mut state): State<AppState>,
+    State(state): State<AppState>,
     _: AuthorizedUser,
     Json(req): Json<RegisterFinishRequest>,
 ) -> Result<(), AppError> {
+    let mut redis = state.redis.get().await.map_err(|_| AppError::Internal("failed to get redis connection".into()))?;
     let key = format!("webauthn:reg:{0}", req.state_token);
-    let stored: Option<String> = state.redis.get(&key).await
-        .map_err(|_| AppError::Internal("redis error".into()))?;
+    let stored: Option<String> = redis.get(&key).await.map_err(|_| AppError::Internal("redis error".into()))?;
     let stored = stored.ok_or_else(|| Unauthorized("registration state not found".into()))?;
 
     let reg_state: PasskeyRegistration = serde_json::from_str(&stored)
@@ -133,9 +136,11 @@ pub struct SignInQuery {
     )
 )]
 pub async fn start_authentication(
-    State(mut state): State<AppState>,
+    State(state): State<AppState>,
     Query(params): Query<SignInQuery>,
 ) -> Result<Json<AuthenticationStartResponse>, AppError> {
+    let mut redis = state.redis.get().await.map_err(|_| AppError::Internal("failed to get redis connection".into()))?;
+
     let keys = state.service.find_all_passkeys(params.email).await?;
     let passkeys = keys.iter().map(|passkey| {
         let key: WebauthnPasskey = serde_json::from_value(passkey.passkey.clone()).unwrap();
@@ -156,7 +161,7 @@ pub async fn start_authentication(
     let _: () = redis::pipe()
         .set(&key, serialized)
         .expire(&key, 300)
-        .query_async(&mut state.redis)
+        .query_async(&mut redis)
         .await
         .map_err(|_| AppError::Internal("failed to set registration state".into()))?;
 
@@ -175,14 +180,16 @@ pub async fn start_authentication(
     )
 )]
 pub async fn finish_authentication(
-    State(mut state): State<AppState>,
+    State(state): State<AppState>,
     mut jar: PrivateCookieJar,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     headers: HeaderMap,
     Json(req): Json<AuthenticationState>,
 ) -> Result<(PrivateCookieJar, Json<AccessTokenResponse>), AppError> {
+    let mut redis = state.redis.get().await.map_err(|_| AppError::Internal("failed to get redis connection".into()))?;
+
     let key = format!("webauthn:signin:{0}", req.state_token);
-    let stored: Option<String> = state.redis.get(&key).await
+    let stored: Option<String> = redis.get(&key).await
         .map_err(|_| AppError::Internal("redis error".into()))?;
     let stored = stored.ok_or_else(|| Unauthorized("registration state not found".into()))?;
 
@@ -220,7 +227,7 @@ pub async fn finish_authentication(
 
     state.service.update_passkey(passkey).await?;
 
-    let _: () = state.redis.del(&key).await
+    let _: () = redis.del(&key).await
         .map_err(|_| AppError::Internal("failed to delete auth state".into()))?;
 
     let user_agent = headers

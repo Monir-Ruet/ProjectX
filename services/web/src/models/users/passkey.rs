@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-use webauthn_rs::prelude::{CreationChallengeResponse, PasskeyAuthentication, PublicKeyCredential, RegisterPublicKeyCredential, RequestChallengeResponse};
+use webauthn_rs::prelude::{CreationChallengeResponse, PublicKeyCredential, RegisterPublicKeyCredential, RequestChallengeResponse};
 
 #[derive(Deserialize)]
 pub struct RegisterFinishRequest {
@@ -24,9 +23,4 @@ pub struct AuthenticationStartResponse {
 pub struct AuthenticationState {
     pub state_token: String,
     pub cred: PublicKeyCredential,
-}
-
-pub struct LoginFinishRequest {
-    pub user_id: Uuid,
-    pub credential: serde_json::Value,
 }

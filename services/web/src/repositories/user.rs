@@ -1,7 +1,5 @@
 use crate::repositories::Repository;
 use async_trait::async_trait;
-use domain::entities::users::challenge::Challenge;
-use domain::entities::users::passkey::Passkey;
 use domain::entities::users::user::User;
 use sqlx::Error;
 use uuid::Uuid;
@@ -13,12 +11,6 @@ pub trait UserRepository {
     async fn delete_user_by_id(&self, id: Uuid) -> Result<(), Error>;
     async fn update_user(&self, user: User) -> Result<(), Error>;
     async fn find_user_by_email(&self, email: String) -> Result<User, Error>;
-    async fn add_update_webauthn_challenge(&self, challenge: Challenge) -> Result<(), Error>;
-    async fn find_challenge(&self, user_id: Uuid) -> Result<Challenge, Error>;
-    async fn add_passkey(&self, passkey: Passkey) -> Result<(), Error>;
-    async fn find_passkey(&self, cred_id: Vec<u8>) -> Result<Passkey, Error>;
-    async fn find_all_passkeys(&self, email: String) -> Result<Vec<Passkey>, Error>;
-    async fn update_passkey(&self, updated_passkey: Passkey) -> Result<(), Error>;
 }
 
 #[async_trait]
@@ -148,94 +140,5 @@ impl UserRepository for Repository {
             .bind(email)
             .fetch_one(&self.pool)
             .await
-    }
-
-    async fn add_update_webauthn_challenge(&self, challenge: Challenge) -> Result<(), Error> {
-        sqlx::query(
-            r#"
-                INSERT INTO challenges (user_id, challenge, expires_at)
-                VALUES ($1, $2, $3)
-                ON CONFLICT (user_id)
-                DO UPDATE SET
-                    challenge = EXCLUDED.challenge,
-                    expires_at = EXCLUDED.expires_at;
-                "#,
-        )
-            .bind(challenge.user_id)
-            .bind(challenge.challenge)
-            .bind(challenge.expires_at)
-            .execute(&self.pool)
-            .await?;
-        Ok(())
-    }
-
-    async fn find_challenge(&self, user_id: Uuid) -> Result<Challenge, Error> {
-        sqlx::query_as::<_, Challenge>(
-            r#"
-                SELECT * FROM challenges
-                WHERE user_id = $1
-                
-                "#,
-        )
-            .bind(user_id)
-            .fetch_one(&self.pool)
-            .await
-    }
-
-    async fn add_passkey(&self, passkey: Passkey) -> Result<(), Error> {
-        sqlx::query(
-            r#"
-                INSERT INTO passkeys (user_id, cred_id, device_type, passkey)
-                VALUES ($1, $2, $3, $4)
-                "#,
-        )
-            .bind(passkey.user_id)
-            .bind(passkey.cred_id)
-            .bind(passkey.device_type)
-            .bind(passkey.passkey)
-            .execute(&self.pool)
-            .await?;
-        Ok(())
-    }
-
-    async fn find_passkey(&self, cred_id: Vec<u8>) -> Result<Passkey, Error> {
-        sqlx::query_as::<_, Passkey>(
-            r#"
-                SELECT * FROM passkeys
-                WHERE cred_id = $1
-                "#,
-        )
-            .bind(cred_id)
-            .fetch_one(&self.pool)
-            .await
-    }
-
-    async fn find_all_passkeys(&self, email: String) -> Result<Vec<Passkey>, Error> {
-        sqlx::query_as::<_, Passkey>(
-            r#"
-                SELECT p.*
-                FROM passkeys as p
-                JOIN users AS u ON u.id = p.user_id
-                WHERE u.email = $1
-                "#,
-        )
-            .bind(email)
-            .fetch_all(&self.pool)
-            .await
-    }
-
-    async fn update_passkey(&self, updated_passkey: Passkey) -> Result<(), Error> {
-        sqlx::query(
-            r#"
-                    UPDATE passkeys
-                    SET passkey = $1
-                    WHERE cred_id = $2
-                "#,
-        )
-            .bind(updated_passkey.passkey)
-            .bind(updated_passkey.cred_id)
-            .execute(&self.pool)
-            .await?;
-        Ok(())
     }
 }
