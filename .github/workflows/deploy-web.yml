@@ -2,11 +2,19 @@ name: Build Image and Deploy Web To Cloud
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "main" ]
   workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
 
 env:
   CARGO_TERM_COLOR: always
+  CONTAINER_APP_NAME: projectx-core-web-dev
+  RESOURCE_GROUP: orionexx
+  CONTAINER_APP_ENVIRONMENT: env
+  LOCATION: eastasia
 
 jobs:
   build:
@@ -22,41 +30,136 @@ jobs:
       - name: Login to Docker Hub
         uses: docker/login-action@v4
         with:
-          registry: docker.io
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push container image to registry
+      - name: Build and push Docker image
         uses: docker/build-push-action@v4
         with:
           context: .
           push: true
-          tags: docker.io/monir81/projectx_web_service:latest
+          tags: |
+            docker.io/monir81/projectx_web_service:${{ github.sha }}
           file: ./services/web/Dockerfile
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
   migrate:
     runs-on: ubuntu-latest
-    steps:
-      - name: Run migrations
-      - run: sqlx migrate run
-      - env:
-          - DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    needs: build
+    environment: dev
 
-  build-and-deploy:
-    runs-on: ubuntu-latest
     steps:
-      - name: Azure login
+      - uses: actions/checkout@v4
+
+      - name: Install sqlx-cli
+        run: cargo install sqlx-cli --no-default-features --features postgres
+
+      - name: Run database migrations
+        run: sqlx migrate run
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [ build, migrate ]
+    environment: dev
+    if: success()
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Azure Login
         uses: azure/login@v3
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          enable-AzPSSession: true
 
-      - name: Azure CLI script
-        uses: azure/cli@v2
-        with:
-          azcliversion: latest
-          inlineScript: |
-            az account show
+      - name: Deploy to Azure Container Apps
+        run: |
+          # Check if container app exists
+          if az containerapp show --name ${{ env.CONTAINER_APP_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} 2>/dev/null; then
+            echo "Updating existing container app..."
+            az containerapp update \
+              --name ${{ env.CONTAINER_APP_NAME }} \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --image docker.io/monir81/projectx_web_service:${{ github.sha }} \
+              --set-env-vars \
+                DATABASE_URL="${{ secrets.DATABASE_URL }}" \
+                SECRET_KEY="${{ secrets.SECRET_KEY }}" \
+                REDIS_URL="${{ secrets.REDIS_URL }}" \
+                RP_ID="${{ secrets.RP_ID }}" \
+                RP_ORIGIN="${{ secrets.RP_ORIGIN }}"
+          else
+            echo "Creating new container app..."
+            # Ensure environment exists
+            if ! az containerapp env show --name ${{ env.CONTAINER_APP_ENVIRONMENT }} --resource-group ${{ env.RESOURCE_GROUP }} 2>/dev/null; then
+              az containerapp env create \
+                --name ${{ env.CONTAINER_APP_ENVIRONMENT }} \
+                --resource-group ${{ env.RESOURCE_GROUP }} \
+                --location ${{ env.LOCATION }}
+            fi
+
+            # Create container app with environment variables
+            az containerapp create \
+              --name ${{ env.CONTAINER_APP_NAME }} \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --environment ${{ env.CONTAINER_APP_ENVIRONMENT }} \
+              --image docker.io/monir81/projectx_web_service:${{ github.sha }} \
+              --target-port 8080 \
+              --ingress external \
+              --cpu 0.5 \
+              --memory 1.0Gi \
+              --min-replicas 1 \
+              --max-replicas 10 \
+              --location ${{ env.LOCATION }} \
+              --env-vars \
+                DATABASE_URL="${{ secrets.DATABASE_URL }}" \
+                SECRET_KEY="${{ secrets.SECRET_KEY }}" \
+                REDIS_URL="${{ secrets.REDIS_URL }}" \
+                RP_ID="${{ secrets.RP_ID }}" \
+                RP_ORIGIN="${{ secrets.RP_ORIGIN }}"
+          fi
+
+      - name: Verify Deployment
+        run: |
+          echo "Waiting for deployment to stabilize..."
+          sleep 30
+          
+          # Get the container app URL
+          APP_URL=$(az containerapp show \
+            --name ${{ env.CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --query "properties.configuration.ingress.fqdn" \
+            --output tsv)
+          
+          echo "✅ Container App deployed successfully!"
+          echo "📍 URL: https://$APP_URL"
+          
+          # Health check (optional - adjust endpoint as needed)
+          if curl -f -k https://$APP_URL/api/health --max-time 10; then
+            echo "✅ Health check passed!"
+          else
+            echo "⚠️ Health check failed, but deployment completed"
+          fi
+
+      - name: Get Container App URL
+        run: |
+          az containerapp show \
+            --name ${{ env.CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --query "properties.configuration.ingress.fqdn" \
+            --output tsv
+
+      - name: Show deployment details
+        run: |
+          echo "=== Deployment Details ==="
+          az containerapp show \
+            --name ${{ env.CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --query "{ProvisioningState:properties.provisioningState, LatestRevision:properties.latestRevisionName, FQDN:properties.configuration.ingress.fqdn}" \
+            --output table
+
+      - name: Azure Logout
+        if: always()
+        run: az logout
