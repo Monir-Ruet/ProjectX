@@ -1,5 +1,4 @@
-name: Rust
-
+name: ProjectX Core 
 on:
   push:
     branches: [ "main" ]
@@ -7,6 +6,7 @@ on:
       - 'shared/**'
       - 'cargo.toml'
       - 'services/projectx-core/**'
+      - '.github/workflows/projectx-core.yml'
   pull_request:
     branches: [ "main" ]
     paths:
@@ -38,7 +38,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: .
-          push: ${{ github.ref == 'refs/heads/main' }}
+          push: ${{ github.event_name != 'pull_request' }}
           tags: docker.io/monir81/projectx-core:latest
           file: services/projectx-core/Dockerfile.prod
           cache-from: type=gha
