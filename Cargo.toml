@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["services/web", "shared/domain"]
+members = ["services/projectx-core", "shared/domain"]
 
 [workspace.dependencies]
 tokio = { version = "1.52.1", features = ["full"] }

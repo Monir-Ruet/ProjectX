@@ -1,2 +1,5 @@
 /target
 .idea
+services/projectx-web/.next
+services/projectx-web/node_modules
+services/projectx-web/.env
