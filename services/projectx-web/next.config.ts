@@ -10,6 +10,7 @@ const nextConfig: NextConfig = {
             },
         ],
     },
+    allowedDevOrigins: ["nirvanic-johanna-unrepresentatively.ngrok-free.dev", "grafting-aftermost-property.ngrok-free.dev"],
 };
 
 export default nextConfig;

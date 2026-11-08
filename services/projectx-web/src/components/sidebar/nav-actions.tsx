@@ -116,7 +116,7 @@ export function MenuActions() {
                                 <DropdownMenuGroup>
                                     <DropdownMenuItem onClick={async () => {
                                         await signOut({
-                                            redirectTo: `${window.location.origin}/api/refresh`,
+                                            redirectTo: `/api/refresh`,
                                         });
                                     }}>
                                         <DoorOpenIcon />
