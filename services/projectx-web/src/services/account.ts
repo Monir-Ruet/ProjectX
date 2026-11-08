@@ -12,11 +12,8 @@ export async function signInWithCredentials(credentials: SignInCredentials): Pro
 }
 
 export async function signInWithProvider(provider: string, credential: SignInProviderCredentials): Promise<AccessTokenResponse | null> {
-    const response = await fetch(`${SIGN_IN_ENDPOINT}/${provider}`, {
+    const response = await reqwest(`${SIGN_IN_ENDPOINT}/${provider}`, {
         method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-        },
         body: JSON.stringify(credential),
     })
 
@@ -26,7 +23,7 @@ export async function signInWithProvider(provider: string, credential: SignInPro
 export async function me(accessToken?: string): Promise<User | null> {
     let response;
     if (accessToken) {
-        response = await fetch(ME_ENDPOINT, {
+        response = await reqwest(ME_ENDPOINT, {
             headers: {
                 Authorization: `Bearer ${accessToken}`,
             },
@@ -38,18 +35,15 @@ export async function me(accessToken?: string): Promise<User | null> {
 }
 
 export async function refresh(refreshToken?: string): Promise<AccessTokenResponse | null> {
-    const response = await fetch(REFRESH_TOKEN_ENDPOINT, {
+    const response = await reqwest(REFRESH_TOKEN_ENDPOINT, {
         method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-        },
         body: JSON.stringify({ refresh_token: refreshToken }),
     })
     return response.ok ? await response.json() : null
 }
 
 export async function is_authenticated(accessToken?: string): Promise<boolean> {
-    const response = await fetch(PING_ENDPOINT, accessToken ? {
+    const response = await reqwest(PING_ENDPOINT, accessToken ? {
         headers: {
             Authorization: `Bearer ${accessToken}`,
         },
@@ -58,11 +52,11 @@ export async function is_authenticated(accessToken?: string): Promise<boolean> {
 }
 
 export async function find_user_by_email(email: string): Promise<User | null> {
-    const response = await fetch(`${USER_BY_EMAIL_ENDPOINT}/${encodeURIComponent(email)}`);
+    const response = await reqwest(`${USER_BY_EMAIL_ENDPOINT}/${encodeURIComponent(email)}`);
     return response.ok ? await response.json() : null;
 }
 
 export async function find_user_by_id(id: string): Promise<User | null> {
-    const response = await fetch(`${USER_BY_ID_ENDPOINT}/${encodeURIComponent(id)}`);
+    const response = await reqwest(`${USER_BY_ID_ENDPOINT}/${encodeURIComponent(id)}`);
     return response.ok ? await response.json() : null;
 }

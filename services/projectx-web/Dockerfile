@@ -25,11 +25,15 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-RUN addgroup -S nextjs && adduser -S nextjs -G nextjs
+RUN addgroup -S -g 1001 nextjs \
+    && adduser -S -u 1001 -G nextjs nextjs
 
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
+
+RUN mkdir -p /app/.next/cache \
+    && chown -R nextjs:nextjs /app/.next
 
 USER nextjs
 

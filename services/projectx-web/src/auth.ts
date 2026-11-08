@@ -5,6 +5,8 @@ import { is_authenticated, me, refresh, signInWithCredentials, signInWithProvide
 import GitHub from "next-auth/providers/github"
 
 export const authConfig: NextAuthConfig = {
+    trustHost: true,
+
     pages: {
         signIn: "/signin",
         error: "/signin",
@@ -142,7 +144,7 @@ export const authConfig: NextAuthConfig = {
             }
         },
 
-        async session({ session, token }) {
+        session({ session, token }) {
             session.user.id = token.id as string
             session.user.role = token.role
             session.user.accessToken = token.accessToken

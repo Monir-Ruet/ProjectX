@@ -12,20 +12,21 @@ export const proxy = auth((request) => {
     if (AUTH_ROUTES.some(route => path.startsWith(route))) {
         return NextResponse.next()
     }
+    let host = `${request.nextUrl.protocol}//${request.headers.get('host')}`;
 
     if (session?.error === "RefreshAccessTokenError") {
-        const signoutUrl = new URL('/signout', request.nextUrl.origin)
+        const signoutUrl = new URL('/signout', host)
         return NextResponse.redirect(signoutUrl)
     }
 
     if (!session && PROTECTED_ROUTES.some(route => path.startsWith(route))) {
-        const signinUrl = new URL('/signin', request.nextUrl.origin)
+        const signinUrl = new URL('/signin', host)
         signinUrl.searchParams.set('callbackUrl', path)
         return NextResponse.redirect(signinUrl)
     }
 
     if (session && UNAUTHENTICATED_ONLY_ROUTES.some(route => path.startsWith(route))) {
-        return NextResponse.redirect(new URL('/', request.nextUrl.origin))
+        return NextResponse.redirect(new URL('/', host))
     }
 
     return NextResponse.next()
