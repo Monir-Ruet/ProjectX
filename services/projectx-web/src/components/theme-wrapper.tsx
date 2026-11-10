@@ -1,16 +1,14 @@
 "use client";
 
 import { ThemeProvider } from "./theme-provider";
+import { LanguageProvider } from "./language-provider";
 
-export function ThemeWrapper({ children }: { children: React.ReactNode }) {
+import type { Language } from "./language-provider";
+
+export function ThemeWrapper({ children, initialLanguage }: { children: React.ReactNode; initialLanguage: Language }) {
     return (
-        <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-        >
-            {children}
+        <ThemeProvider>
+            <LanguageProvider initialLanguage={initialLanguage}>{children}</LanguageProvider>
         </ThemeProvider>
     );
 }

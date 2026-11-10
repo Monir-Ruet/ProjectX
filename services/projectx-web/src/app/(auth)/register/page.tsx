@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { Base64 } from 'js-base64';
 import { reqwest } from '@/lib/fetch';
+import { BrandIcon } from '@/components/brand-icon';
 
 export default function RegisterPage() {
     const [loading, setLoading] = useState(false);
@@ -83,7 +84,8 @@ export default function RegisterPage() {
     };
 
     return (
-        <div>
+        <div className="relative flex min-h-svh items-center justify-center bg-(--app-bg)">
+            <BrandIcon />
             <button onClick={handleRegister} disabled={loading}>
                 {loading ? 'Creating Passkey...' : 'Register with Passkey'}
             </button>

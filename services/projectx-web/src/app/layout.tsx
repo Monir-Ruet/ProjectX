@@ -5,6 +5,8 @@ import { ThemeWrapper } from "@/components/theme-wrapper";
 import { SessionProvider } from "next-auth/react";
 import { Toaster } from "sonner";
 import ProgressLoader from "@/components/progress-loader";
+import { cookies } from "next/headers";
+import type { Language } from "@/components/language-provider";
 
 const geistSans = Geist({
     variable: "--font-geist-sans",
@@ -19,16 +21,19 @@ export const metadata: Metadata = {
     },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
     children,
 }: Readonly<{
     children: React.ReactNode;
 }>) {
+    const languageCookie = (await cookies()).get("projectx-language")?.value;
+    const language: Language = languageCookie === "en" ? "en" : "bn";
+
     return (
-        <html lang="en" suppressHydrationWarning>
+        <html lang={language} dir="ltr" suppressHydrationWarning>
             <body className={`${geistSans.className} h-full antialiased text-sm`}>
                 <ProgressLoader />
-                <ThemeWrapper>
+                <ThemeWrapper initialLanguage={language}>
                     <SessionProvider>
                         {children}
                     </SessionProvider>

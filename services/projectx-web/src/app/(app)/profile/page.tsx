@@ -1,118 +1,21 @@
-"use client"
+"use client";
 
-import { useSession } from "next-auth/react"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Separator } from "@/components/ui/separator"
-import { Label } from "@/components/ui/label"
+import { useSession } from "next-auth/react";
+import { Camera, Check, LockKeyhole, Mail, ShieldCheck, UserRound } from "lucide-react";
 
 export default function ProfilePage() {
-    const { data: session } = useSession()
-
-    const user = session?.user
+    const { data: session } = useSession();
+    const user = session?.user;
+    const initials = user?.name?.split(" ").map((name) => name[0]).join("") || "শি";
 
     return (
-        <div className="mx-auto p-6 space-y-6">
-            <div className="flex items-center gap-4">
-                <Avatar className="h-16 w-16">
-                    <AvatarImage
-                        src={user?.image || ""} />
-                    <AvatarFallback>
-                        {user?.name
-                            ?.split(" ")
-                            .map((n) => n[0])
-                            .join("")}
-                    </AvatarFallback>
-                </Avatar>
-
-                <div>
-                    <h1 className="text-2xl font-semibold">
-                        {user?.name ?? "Guest User"}
-                    </h1>
-                    <p className="text-sm text-muted-foreground">
-                        {user?.email ?? "No email available"}
-                    </p>
-                </div>
+        <main className="mx-auto w-full max-w-5xl space-y-6 pb-8">
+            {/* <section className="flex flex-col justify-between gap-5 rounded-3xl bg-(--app-hero) px-6 py-7 text-white sm:flex-row sm:items-end sm:px-10"><div><p className="text-sm text-(--app-hero-muted)">আপনার অ্যাকাউন্ট</p><h1 className="mt-2 text-3xl font-semibold tracking-tight">প্রোফাইল</h1><p className="mt-2 text-sm text-(--app-hero-text)">আপনার ব্যক্তিগত তথ্য এবং নিরাপত্তা পরিচালনা করুন।</p></div><UserRound className="size-6 text-(--app-gold)" /></section> */}
+            <section className="rounded-2xl border border-(--app-border) bg-(--app-card) p-5 shadow-sm sm:p-6"><div className="flex flex-col items-center gap-5 sm:flex-row"><div className="relative"><div className="flex size-24 items-center justify-center overflow-hidden rounded-3xl bg-(--app-green-soft) text-3xl font-semibold text-(--app-primary)">{user?.image ? <img src={user.image} alt="" className="size-full object-cover" /> : initials}</div><button aria-label="ছবি পরিবর্তন করুন" className="absolute -bottom-2 -left-2 flex size-8 items-center justify-center rounded-full border-2 border-(--app-card) bg-(--app-gold) text-(--app-hero) shadow-sm"><Camera className="size-4" /></button></div><div className="text-center sm:text-left"><h2 className="text-2xl font-semibold text-(--app-heading)">{user?.name || "শিক্ষার্থী"}</h2><p className="mt-1 text-sm text-(--app-muted)">{user?.email || "আপনার ইমেইল যোগ করুন"}</p><span className="mt-3 inline-flex rounded-full bg-(--app-green-soft) px-3 py-1 text-xs text-(--app-primary)">পাঠশালা শিক্ষার্থী</span></div></div></section>
+            <div className="grid gap-6 lg:grid-cols-[1.35fr_1fr]">
+                <section className="rounded-2xl border border-(--app-border) bg-(--app-card) p-5 shadow-sm sm:p-6"><div className="flex items-center gap-3"><div className="flex size-10 items-center justify-center rounded-xl bg-(--app-green-soft) text-(--app-primary)"><UserRound className="size-5" /></div><div><h2 className="font-semibold text-(--app-heading)">ব্যক্তিগত তথ্য</h2><p className="mt-1 text-xs text-(--app-muted)">আপনার প্রোফাইলের তথ্য আপডেট করুন</p></div></div><div className="mt-6 space-y-4"><label className="block"><span className="mb-2 block text-sm font-medium text-(--app-text-soft)">পুরো নাম</span><div className="flex items-center gap-3 rounded-xl border border-(--app-border-strong) px-3.5 py-3 text-sm text-(--app-text)"><UserRound className="size-4 text-(--app-muted)" /><input className="w-full bg-transparent outline-none" defaultValue={user?.name || ""} placeholder="আপনার নাম" /></div></label><label className="block"><span className="mb-2 block text-sm font-medium text-(--app-text-soft)">ইমেইল</span><div className="flex items-center gap-3 rounded-xl border border-(--app-border-strong) px-3.5 py-3 text-sm text-(--app-text)"><Mail className="size-4 text-(--app-muted)" /><input className="w-full bg-transparent outline-none" defaultValue={user?.email || ""} placeholder="আপনার ইমেইল" /></div></label><button className="inline-flex items-center gap-2 rounded-xl bg-(--app-primary) px-4 py-2.5 text-sm font-semibold text-white"><Check className="size-4" /> পরিবর্তন সংরক্ষণ করুন</button></div></section>
+                <section className="rounded-2xl border border-(--app-border) bg-(--app-card) p-5 shadow-sm sm:p-6"><div className="flex items-center gap-3"><div className="flex size-10 items-center justify-center rounded-xl bg-(--app-blue-soft) text-(--app-blue)"><ShieldCheck className="size-5" /></div><div><h2 className="font-semibold text-(--app-heading)">নিরাপত্তা</h2><p className="mt-1 text-xs text-(--app-muted)">আপনার অ্যাকাউন্ট সুরক্ষিত রাখুন</p></div></div><div className="mt-6 space-y-3"><button className="flex w-full items-center gap-3 rounded-xl border border-(--app-border-soft) p-3.5 text-right hover:bg-(--app-soft)"><LockKeyhole className="size-4 text-(--app-blue)" /><span className="flex-1"><span className="block text-sm font-medium text-(--app-text)">পাসওয়ার্ড পরিবর্তন</span><span className="mt-1 block text-xs text-(--app-muted)">নিয়মিত পাসওয়ার্ড আপডেট করুন</span></span></button><div className="rounded-xl bg-(--app-soft) p-3.5 text-xs leading-5 text-(--app-muted-strong)"><span className="font-semibold text-(--app-primary)">আপনার অ্যাকাউন্ট সুরক্ষিত।</span> শেষ লগইন: আজ সকাল ৯:৪২</div></div></section>
             </div>
-
-            <Separator />
-
-            {/* TABS */}
-            <Tabs defaultValue="account" className="w-full">
-                <TabsList>
-                    <TabsTrigger value="account">Account</TabsTrigger>
-                    <TabsTrigger value="security">Security</TabsTrigger>
-                    <TabsTrigger value="billing">Billing</TabsTrigger>
-                </TabsList>
-
-                {/* ACCOUNT */}
-                <TabsContent value="account">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Account Information</CardTitle>
-                        </CardHeader>
-
-                        <CardContent className="space-y-4">
-                            <div className="space-y-2">
-                                <Label className="text-sm">Full Name</Label>
-                                <Input value={user?.name ?? ""} />
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label className="text-sm">Email</Label>
-                                <Input value={user?.email ?? ""} />
-                            </div>
-
-                            <Button>Save Changes</Button>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-
-                {/* SECURITY */}
-                <TabsContent value="security">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Security Settings</CardTitle>
-                        </CardHeader>
-
-                        <CardContent className="space-y-4">
-                            <div className="space-y-2">
-                                <Label className="text-sm">New Password</Label>
-                                <Input type="password" placeholder="••••••••" />
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label className="text-sm">Confirm Password</Label>
-                                <Input type="password" placeholder="••••••••" />
-                            </div>
-
-                            <Button>Update Password</Button>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-
-                {/* BILLING */}
-                <TabsContent value="billing">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Billing</CardTitle>
-                        </CardHeader>
-
-                        <CardContent className="space-y-4">
-                            <p className="text-sm text-muted-foreground">
-                                Manage your subscription and payment methods.
-                            </p>
-
-                            <Button variant="outline">
-                                Manage Subscription
-                            </Button>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-            </Tabs>
-        </div>
-    )
+        </main>
+    );
 }

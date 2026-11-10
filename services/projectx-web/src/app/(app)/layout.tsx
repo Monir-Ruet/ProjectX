@@ -1,6 +1,5 @@
-import { AppSidebar } from "@/components/sidebar/app-sidebar";
-import { SiteHeader } from "@/components/sidebar/site-header";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { AppHeader } from "@/components/app-header";
+import { BottomNavigation } from "@/components/bottom-navigation";
 
 export default function RootLayout({
     children,
@@ -8,14 +7,12 @@ export default function RootLayout({
     children: React.ReactNode;
 }>) {
     return (
-        <SidebarProvider>
-            <AppSidebar />
-            <SidebarInset>
-                <SiteHeader />
-                <div className="p-4">
-                    {children}
-                </div>
-            </SidebarInset>
-        </SidebarProvider>
+        <div className="min-h-svh bg-(--app-bg)">
+            <AppHeader />
+            <div className="mx-auto w-full px-4 pb-24 pt-5 sm:px-6 lg:w-3/5 lg:px-0">
+                {children}
+            </div>
+            <BottomNavigation />
+        </div>
     );
 }

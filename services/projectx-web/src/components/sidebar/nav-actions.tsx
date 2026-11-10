@@ -12,19 +12,21 @@ import {
     DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel,
     DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
-import { useTheme } from "next-themes"
+import { useTheme } from "@/components/theme-provider"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarBadge, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { signOut, useSession } from "next-auth/react"
 import { useRouter } from "next/navigation";
 import Link from "next/link"
+import { useLanguage } from "@/components/language-provider"
 
 export function MenuActions() {
     const router = useRouter();
     const [isOpen, setIsOpen] = useState(false);
     const { data: session } = useSession();
     const { theme, setTheme } = useTheme();
+    const { t } = useLanguage();
 
     return (
         <div className="flex items-center gap-2">
@@ -51,7 +53,7 @@ export function MenuActions() {
                                 <AvatarBadge className="bg-green-600 dark:bg-green-800" />
                             </Avatar>
                         ) : (
-                            <EllipsisVertical />
+                            <EllipsisVertical className="black" />
                         )}
                     </Button>
                 }>
@@ -62,16 +64,16 @@ export function MenuActions() {
                         session && (
                             <>
                                 <DropdownMenuGroup>
-                                    <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                                    <DropdownMenuLabel>{t("account")}</DropdownMenuLabel>
                                     <DropdownMenuItem>
                                         <Link href="/profile" className="flex items-center gap-2 w-full">
                                             <UserIcon />
-                                            Profile
+                                            {t("profile")}
                                         </Link>
                                     </DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => router.push("/billing")}>
                                         <DollarSign />
-                                        Billing
+                                        {t("billing")}
                                     </DropdownMenuItem>
                                 </DropdownMenuGroup>
                                 <DropdownMenuSeparator />
@@ -80,20 +82,20 @@ export function MenuActions() {
                     }
 
                     <DropdownMenuGroup>
-                        <DropdownMenuLabel>Settings</DropdownMenuLabel>
+                        <DropdownMenuLabel>{t("settings")}</DropdownMenuLabel>
                         <DropdownMenuItem onClick={() => router.push("/settings")}>
                             <SettingsIcon />
-                            Settings
+                            {t("settings")}
                         </DropdownMenuItem>
                         <DropdownMenuSub>
                             <DropdownMenuSubTrigger>
                                 <MoonIcon />
-                                Appearance: {theme && theme.charAt(0).toUpperCase() + theme.slice(1)}
+                                {t("theme")}: {theme === "dark" ? t("dark") : theme === "light" ? t("light") : t("system")}
                             </DropdownMenuSubTrigger>
                             <DropdownMenuSubContent>
-                                <DropdownMenuLabel>Choose Theme</DropdownMenuLabel>
+                                <DropdownMenuLabel>{t("chooseTheme")}</DropdownMenuLabel>
                                 {
-                                    ["system", "dark", "light"].map((option, index) => (
+                                    (["system", "dark", "light"] as const).map((option, index) => (
                                         <DropdownMenuCheckboxItem
                                             key={index}
                                             checked={option == theme}
@@ -101,7 +103,7 @@ export function MenuActions() {
                                                 setTheme(option)
                                             }}
                                         >
-                                            {option.charAt(0).toUpperCase() + option.slice(1)}
+                                            {option === "dark" ? t("dark") : option === "light" ? t("light") : t("system")}
                                         </DropdownMenuCheckboxItem>
                                     ))
                                 }
@@ -120,7 +122,7 @@ export function MenuActions() {
                                         });
                                     }}>
                                         <DoorOpenIcon />
-                                        Sign out
+                                        {t("signOut")}
                                     </DropdownMenuItem>
                                 </DropdownMenuGroup>
                             </>

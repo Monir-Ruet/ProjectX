@@ -49,6 +49,39 @@
 }
 
 :root {
+    --app-bg: #f5f7f2;
+    --app-card: #fffefa;
+    --app-warm: #faf8f1;
+    --app-border: #dfe7df;
+    --app-border-strong: #c9d8cb;
+    --app-border-soft: #e9eee8;
+    --app-border-warm: #ebe5d7;
+    --app-track: #e4ebe3;
+    --app-soft: #edf3ed;
+    --app-green-soft: #e3f0e5;
+    --app-green-pale: #d4e8d7;
+    --app-green-mid: #a9caae;
+    --app-primary: #1b4d3e;
+    --app-primary-hover: #12392e;
+    --app-heading: #18352d;
+    --app-text: #29443b;
+    --app-text-soft: #3f5b50;
+    --app-muted-strong: #587067;
+    --app-muted: #71847c;
+    --app-muted-light: #9bab9f;
+    --app-hero: #173f34;
+    --app-hero-glow: #2e6a56;
+    --app-hero-muted: #b9d5bd;
+    --app-hero-text: #d9e8d9;
+    --app-gold: #d99a2b;
+    --app-gold-hover: #bd7d19;
+    --app-gold-soft: #fff1d2;
+    --app-gold-pale: #f8dfaa;
+    --app-gold-text: #9a6410;
+    --app-blue: #27728a;
+    --app-blue-soft: #e0f0f4;
+    --app-coral: #c95f4c;
+    --app-coral-soft: #fbe7e1;
     --card: oklch(1 0 0);
     --card-foreground: oklch(0.145 0 0);
     --popover: oklch(1 0 0);
@@ -84,6 +117,39 @@
 }
 
 .dark {
+    --app-bg: #121212;
+    --app-card: #1c1c1c;
+    --app-warm: #242424;
+    --app-border: #353535;
+    --app-border-strong: #4b4b4b;
+    --app-border-soft: #2a2a2a;
+    --app-border-warm: #464646;
+    --app-track: #303030;
+    --app-soft: #272727;
+    --app-green-soft: #303030;
+    --app-green-pale: #484848;
+    --app-green-mid: #626262;
+    --app-primary: #c8922d;
+    --app-primary-hover: #e0ad4a;
+    --app-heading: #fffaf0;
+    --app-text: #f1ede5;
+    --app-text-soft: #d8d2c8;
+    --app-muted-strong: #bdb6ab;
+    --app-muted: #9e978d;
+    --app-muted-light: #7d776f;
+    --app-hero: #242424;
+    --app-hero-glow: #414141;
+    --app-hero-muted: #c8c8c8;
+    --app-hero-text: #ededed;
+    --app-gold: #e2b45a;
+    --app-gold-hover: #f2ca78;
+    --app-gold-soft: #43351e;
+    --app-gold-pale: #e8c878;
+    --app-gold-text: #f2ca78;
+    --app-blue: #bdbdbd;
+    --app-blue-soft: #383838;
+    --app-coral: #f09a83;
+    --app-coral-soft: #492b26;
     --background: oklch(0.145 0 0);
     --foreground: oklch(0.985 0 0);
     --card: oklch(0.205 0 0);
@@ -109,7 +175,7 @@
     --chart-5: oklch(0.269 0 0);
     --sidebar: oklch(0.205 0 0);
     --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
+    --sidebar-primary: oklch(0.74 0.12 80);
     --sidebar-primary-foreground: oklch(0.985 0 0);
     --sidebar-accent: oklch(0.269 0 0);
     --sidebar-accent-foreground: oklch(0.985 0 0);
@@ -132,7 +198,7 @@
 }
 
 #nprogress .bar {
-    background: rgb(39, 129, 240);
+    background: var(--app-gold);
     position: fixed;
     z-index: 999900000;
     top: 0;

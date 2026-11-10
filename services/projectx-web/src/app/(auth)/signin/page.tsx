@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Image from "next/image"
-import { AlertTriangleIcon, KeyIcon } from "lucide-react"
+import { AlertTriangleIcon, FingerprintPattern, GraduationCap, Sparkles } from "lucide-react"
 import { signIn } from "next-auth/react"
 import { useState } from "react"
 import { useRouter } from "next/navigation";
@@ -11,13 +11,6 @@ import { signInSchema, signInZodSchema } from "@/schemas/account"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card"
 import {
     Field,
     FieldDescription,
@@ -43,6 +36,7 @@ export default function SignIn() {
             password: "",
         },
     });
+    const email = signInForm.watch("email");
 
     const handleSignIn = async (data: signInSchema) => {
         setLoading(true);
@@ -122,120 +116,140 @@ export default function SignIn() {
             router.push("/");
             return true;
         } catch {
-            setMessage("Authentication failed. Please try again.");
+            setMessage("Authentication failed. Please try again. Make sure you have registered a passkey for this email.");
             return false;
         }
     };
 
     return (
-        <div className="flex min-h-svh flex-col items-center justify-center gap-6 bg-muted p-6 md:p-10">
-            <div className="flex w-full max-w-sm lg:max-w-md flex-col gap-6">
-                <Link href="/" className="flex items-center">
-                    <Image src={"/x.png"} width={50} height={50} alt="ProjectX" className="mx-auto" />
-                </Link>
-                <div className={"flex flex-col gap-6"}>
-                    <Card>
-                        <CardHeader className="text-center">
-                            <CardTitle className="text-xl">Welcome back</CardTitle>
-                            <CardDescription>
-                                Sign in to your account to continue
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <form onSubmit={signInForm.handleSubmit(handleSignIn)} >
-                                <FieldGroup>
-                                    <Field>
-                                        <div className="flex gap-2 justify-center">
-                                            <Button variant="outline" type="button" onClick={() => signIn("google", { callbackUrl: "/" })}>
-                                                <Image src="/google.svg" alt="Google" width={20} height={20} />
-                                                Google
-                                            </Button>
-                                            <Button variant="outline" type="button" onClick={() => signIn("github", { callbackUrl: "/" })}>
-                                                <Image src={"/github.svg"} width={20} height={20} alt="github" />
-                                                Github
-                                            </Button>
-                                        </div>
-                                    </Field>
-
-                                    <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card">
-                                        Or continue with
-                                    </FieldSeparator>
-
-                                    {
-                                        message &&
-                                        (
-                                            <Alert className="max-w-md border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950 ">
-                                                <AlertTriangleIcon />
-                                                <AlertDescription className="text-amber-900 dark:text-amber-50">
-                                                    {message}
-                                                </AlertDescription>
-                                            </Alert>
-                                        )
-                                    }
-
-                                    <Field>
-                                        <FieldLabel htmlFor="email">Email</FieldLabel>
-                                        <InputGroup className="rounded-sm py-5">
-                                            <InputGroupInput
-                                                {...signInForm.register("email")}
-                                                id="email"
-                                                type="text"
-                                                required
-                                                autoComplete="username webauthn" />
-                                            <InputGroupAddon align="inline-end">
-                                                <Tooltip>
-                                                    <TooltipTrigger render={
-                                                        <InputGroupButton variant="secondary" onClick={handlePassKeySignin}>
-                                                            <KeyIcon />
-                                                        </InputGroupButton>} />
-                                                    <TooltipContent>
-                                                        <p>Sign in with Passkey</p>
-                                                    </TooltipContent>
-                                                </Tooltip>
-
-
-                                            </InputGroupAddon>
-                                        </InputGroup>
-                                    </Field>
-                                    <Field>
-                                        <div className="flex items-center">
-                                            <FieldLabel htmlFor="password">Password</FieldLabel>
-                                            <Link href="/forgot-password" className="ml-auto  underline-offset-4 hover:underline">
-                                                Forgot your password?
-                                            </Link>
-                                        </div>
-                                        <Input
-                                            {...signInForm.register("password")}
-                                            id="password"
-                                            type="password"
-                                            required
-                                            className="rounded-sm p-5"
-                                        />
-                                    </Field>
-                                    <Field>
-                                        <Button type="submit" disabled={loading} className="p-5 text-md font-bold">
-                                            Sign In
+        <main className="flex min-h-svh items-center justify-center bg-(--app-bg) p-4 sm:p-8">
+            <div className="grid w-full max-w-5xl overflow-hidden rounded-3xl border border-(--app-border) bg-(--app-card) shadow-2xl lg:grid-cols-[0.85fr_1.15fr]">
+                <section className="relative hidden overflow-hidden bg-(--app-hero) p-10 text-white lg:flex lg:flex-col lg:justify-between">
+                    <div className="absolute -bottom-24 -left-20 size-72 rounded-full bg-(--app-hero-glow)/40 blur-3xl" />
+                    <div className="relative">
+                        <Link href="/" className="inline-flex items-center gap-3">
+                            <span className="flex size-11 items-center justify-center rounded-xl bg-(--app-gold) text-(--app-hero)"><GraduationCap className="size-6" /></span>
+                            <span className="text-lg font-bold">পাঠশালা</span>
+                        </Link>
+                        <div className="mt-24 max-w-xs">
+                            <Sparkles className="size-6 text-(--app-gold)" />
+                            <h1 className="mt-5 text-4xl font-semibold leading-tight">আপনার শেখার যাত্রা এখান থেকেই শুরু।</h1>
+                            <p className="mt-5 text-sm leading-6 text-(--app-hero-text)">প্রতিদিন একটু করে এগিয়ে যান, নিজের লক্ষ্যে পৌঁছে যান।</p>
+                        </div>
+                    </div>
+                    <p className="relative text-xs text-(--app-hero-muted)">স্মার্টভাবে শিখুন • নিয়মিত এগিয়ে যান</p>
+                </section>
+                <section className="p-6 sm:p-10">
+                    <div className="mb-8 flex items-center gap-3 lg:hidden">
+                        <span className="flex size-10 items-center justify-center rounded-xl bg-(--app-hero) text-(--app-gold)"><GraduationCap className="size-5" /></span>
+                        <span className="font-bold text-(--app-heading)">পাঠশালা</span>
+                    </div>
+                    <div className="mb-8">
+                        <p className="text-xs font-medium uppercase tracking-[0.18em] text-(--app-muted)">স্বাগতম</p>
+                        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-(--app-heading)">আবার দেখা হচ্ছে</h1>
+                        <p className="mt-2 text-sm text-(--app-muted-strong)">আপনার অ্যাকাউন্টে সাইন ইন করে শেখা চালিয়ে যান।</p>
+                    </div>
+                    <div className="flex flex-col">
+                        <form onSubmit={signInForm.handleSubmit(handleSignIn)} >
+                            <FieldGroup>
+                                <Field>
+                                    <div className="grid gap-3 sm:grid-cols-2">
+                                        <Button variant="outline" className="h-11 border-(--app-border-strong)" type="button" onClick={() => signIn("google", { callbackUrl: "/" })}>
+                                            <Image src="/google.svg" alt="Google" width={20} height={20} />
+                                            Google
                                         </Button>
-                                        <FieldDescription className="text-center">
-                                            Don&apos;t have an account? <Link href="/signup" className="text-primary hover:underline">
-                                                Sign up
-                                            </Link>
-                                        </FieldDescription>
-                                    </Field>
-                                </FieldGroup>
-                            </form>
-                        </CardContent>
-                    </Card>
-                    <FieldDescription className="px-6 text-center">
-                        By clicking continue, you agree to our <Link href="/terms" className="text-primary hover:underline">
-                            Terms of Service
-                        </Link>{" "}
-                        and <Link href="/privacy" className="text-primary hover:underline">
-                            Privacy Policy
-                        </Link>.
-                    </FieldDescription>
-                </div>
+                                        <Button variant="outline" className="h-11 border-(--app-border-strong)" type="button" onClick={() => signIn("github", { callbackUrl: "/" })}>
+                                            <Image src={"/github.svg"} width={20} height={20} alt="github" />
+                                            Github
+                                        </Button>
+                                    </div>
+                                </Field>
+
+                                <FieldSeparator className="*:data-[slot=field-separator-content]:bg-(--app-card) text-(--app-muted)">
+                                    অথবা ইমেইল দিয়ে
+                                </FieldSeparator>
+
+                                {
+                                    message &&
+                                    (
+                                        <Alert className="border-red-200 bg-red-50 text-red-900 dark:border-red-900 dark:bg-red-950 dark:text-red-100">
+                                            <AlertTriangleIcon />
+                                            <AlertDescription>
+                                                {message}
+                                            </AlertDescription>
+                                        </Alert>
+                                    )
+                                }
+
+                                <Field>
+                                    <FieldLabel htmlFor="email">ইমেইল</FieldLabel>
+                                    <InputGroup className="rounded-sm py-5">
+                                        <InputGroupInput
+                                            {...signInForm.register("email")}
+                                            id="email"
+                                            type="text"
+                                            required
+                                            autoComplete="username webauthn" />
+
+                                        <InputGroupAddon align="inline-end">
+                                            <Tooltip >
+                                                <TooltipTrigger render={
+                                                    <InputGroupButton
+                                                        variant="secondary"
+                                                        type="button"
+                                                        onClick={handlePassKeySignin}
+                                                        disabled={!email.trim()}
+                                                    >
+                                                        <FingerprintPattern />
+                                                    </InputGroupButton>} />
+                                                <TooltipContent>
+                                                    <p>Sign in with Passkey</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+
+
+                                        </InputGroupAddon>
+                                    </InputGroup>
+                                </Field>
+                                <Field>
+                                    <div className="flex items-center">
+                                        <FieldLabel htmlFor="password">পাসওয়ার্ড</FieldLabel>
+                                        <Link href="/forgot-password" className="ml-auto text-xs text-(--app-muted-strong) underline-offset-4 hover:text-(--app-primary) hover:underline">
+                                            পাসওয়ার্ড ভুলে গেছেন?
+                                        </Link>
+                                    </div>
+                                    <Input
+                                        {...signInForm.register("password")}
+                                        id="password"
+                                        type="password"
+                                        required
+                                        className="rounded-sm p-5"
+                                    />
+                                </Field>
+                                <Field>
+                                    <Button type="submit" disabled={loading} className="h-11 w-full bg-(--app-primary) text-sm font-semibold text-white hover:bg-(--app-primary-hover)">
+                                        {loading ? "সাইন ইন হচ্ছে..." : "সাইন ইন করুন"}
+                                    </Button>
+                                    <FieldDescription className="text-center">
+                                        অ্যাকাউন্ট নেই? <Link href="/signup" className="font-medium text-(--app-primary) hover:underline">
+                                            রেজিস্টার করুন
+                                        </Link>
+                                    </FieldDescription>
+                                </Field>
+                            </FieldGroup>
+                        </form>
+
+                        <FieldDescription className="px-6 text-center">
+                            চালিয়ে গেলে আপনি আমাদের <Link href="/terms" className="text-(--app-primary) hover:underline">
+                                শর্তাবলি
+                            </Link>{" "}
+                            and <Link href="/privacy" className="text-primary hover:underline">
+                                গোপনীয়তা নীতি
+                            </Link>.
+                        </FieldDescription>
+                    </div>
+                </section>
             </div>
-        </div>
+        </main>
     )
 }

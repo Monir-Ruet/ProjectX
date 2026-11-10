@@ -2,8 +2,8 @@ import { auth } from "@/auth"
 import { NextResponse } from "next/server"
 
 const PROTECTED_ROUTES = ["/dashboard", "/profile"]
-const UNAUTHENTICATED_ONLY_ROUTES = ["/signin", "/register"]
-const AUTH_ROUTES = ["/signin", "/register", "/signout", "/refresh"]
+const UNAUTHENTICATED_ONLY_ROUTES = ["/signin", "/register", "/signup", "/forgot-password", "/reset-password"]
+const AUTH_ROUTES = ["/signin", "/register", "/signup", "/forgot-password", "/reset-password", "/signout", "/refresh"]
 
 export const proxy = auth((request) => {
     const session = request.auth
